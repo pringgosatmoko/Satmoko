@@ -48,6 +48,7 @@ export default async function handler(req: Request) {
 
     const authHeader = `Basic ${btoa(serverKey + ':')}`;
 
+    const origin = req.headers.get('origin') || 'https://satmoko-n3rl.vercel.app';
     const midtransResponse = await fetch('https://app.sandbox.midtrans.com/snap/v1/transactions', {
       method: 'POST',
       headers: {
@@ -69,7 +70,10 @@ export default async function handler(req: Request) {
           price: price,
           quantity: 1,
           name: `${credits} AI Credits`
-        }]
+        }],
+        callbacks: {
+          finish: origin
+        }
       })
     });
 

@@ -166,7 +166,7 @@ export const StoryboardToVideo: React.FC<StoryboardToVideoProps> = ({ onBack, la
            try {
               const currentAi = new GoogleGenAI({ apiKey: getActiveApiKey() });
               const imgResponse = await currentAi.models.generateContent({
-                model: 'gemini-1.5-flash',
+                model: 'gemini-2.0-flash',
                 contents: { parts: [{ text: `${prompts[i]}. Cinematic high-end production, matches style: ${videoStyle}.` }] },
                 config: {
                   imageConfig: { aspectRatio: aspectRatio === '21:9' ? '16:9' : (aspectRatio as any) }
@@ -253,7 +253,7 @@ export const StoryboardToVideo: React.FC<StoryboardToVideoProps> = ({ onBack, la
       }));
 
       let operation = await ai.models.generateVideos({
-        model: 'veo-3.1-generate-preview',
+        model: 'veo-2.0-generate-preview',
         prompt: finalPrompt,
         config: {
           numberOfVideos: 1,

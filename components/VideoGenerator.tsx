@@ -108,8 +108,8 @@ export const VideoGenerator: React.FC<VideoGeneratorProps> = ({ mode, onBack, la
       }));
 
       const modelName = engineType === 'High Quality' || sourceImages.length > 1 
-        ? 'veo-3.1-generate-preview' 
-        : 'veo-3.1-fast-generate-preview';
+        ? 'veo-2.0-generate-preview'
+        : 'veo-2.0-fast-generate-preview';
 
       let operation = await ai.models.generateVideos({
         model: modelName,

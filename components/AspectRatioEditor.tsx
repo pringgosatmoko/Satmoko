@@ -77,7 +77,7 @@ export const AspectRatioEditor: React.FC<AspectRatioEditorProps> = ({ onBack, la
       Maintain high quality and professional seamless blending.`;
 
       const response = await ai.models.generateContent({
-        model: 'gemini-1.5-flash',
+        model: 'gemini-2.0-flash',
         contents: { 
           parts: [
             { inlineData: { data: sourceImage.split(',')[1], mimeType: 'image/png' } }, 

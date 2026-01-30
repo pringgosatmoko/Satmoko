@@ -124,7 +124,7 @@ export const VideoDirector: React.FC<VideoDirectorProps> = ({ onBack, lang, user
       const fullPrompt = `${seg.visualDescription}. Style: ${visualStyle}. Action: ${seg.action}`;
 
       let operation = await ai.models.generateVideos({
-        model: 'veo-3.1-fast-generate-preview',
+        model: 'veo-2.0-fast-generate-preview',
         prompt: fullPrompt,
         config: { numberOfVideos: 1, resolution: '720p', aspectRatio: '16:9' }
       });

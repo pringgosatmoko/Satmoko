@@ -33,16 +33,26 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({ onBack, lang }) =>
     try {
       const ai = new GoogleGenAI({ apiKey });
       const response = await ai.models.generateContent({
-        model: 'gemini-1.5-flash',
-        contents: userMsg,
+        model: 'gemini-2.0-flash',
+        contents: [{ role: 'user', parts: [{ text: userMsg }] }],
         config: {
-          systemInstruction: `Panggil pengguna dengan "Bro". Gaya bahasa kekinian, santai tapi cerdas. Anda adalah asisten Satmoko Studio.`,
+          systemInstruction: { parts: [{ text: `Panggil pengguna dengan "Bro". Gaya bahasa kekinian, santai tapi cerdas. Anda adalah asisten Satmoko Studio.` }] },
           temperature: 0.8
         }
       });
+
       const reply = response.text;
-      if (!reply) throw new Error("Transmisi Kosong");
-      setMessages(prev => [...prev, { role: 'assistant', text: reply }]);
+      if (!reply) {
+        // Fallback check candidates
+        const candidateText = response.candidates?.[0]?.content?.parts?.find(p => p.text)?.text;
+        if (candidateText) {
+          setMessages(prev => [...prev, { role: 'assistant', text: candidateText }]);
+        } else {
+          throw new Error("Transmisi Kosong");
+        }
+      } else {
+        setMessages(prev => [...prev, { role: 'assistant', text: reply }]);
+      }
       setIsTyping(false);
     } catch (e: any) {
       console.error("[ChatEngine] Error:", e);
@@ -51,7 +61,8 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({ onBack, lang }) =>
         rotateApiKey();
         setTimeout(() => handleSend(userMsg, retryCount + 1), 1000);
       } else {
-        setMessages(prev => [...prev, { role: 'assistant', text: `Sorry Bro, node transmisi lagi padat (${msg.substring(0, 30)}...). Coba chat lagi sedetik kemudian ya!` }]);
+        const errorDetail = msg.includes('not found') ? 'Model Not Found' : msg.substring(0, 50);
+        setMessages(prev => [...prev, { role: 'assistant', text: `Waduh Bro, ada kendala transmisi: ${errorDetail}. Coba lagi ya!` }]);
         setIsTyping(false);
       }
     }

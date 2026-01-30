@@ -189,9 +189,12 @@ const App: React.FC = () => {
       interval = setInterval(() => {
         // Hanya cek jika tidak sedang syncing
         if (!isSyncing) {
-          checkMemberStatus(userEmail);
+          checkMemberStatus(userEmail).then(() => {
+             // Jika status berubah jadi logged in, kita bisa bantu tutup modal dengan refresh ringan
+             // (Tapi biasanya React state update sudah cukup)
+          });
         }
-      }, 10000); // Cek setiap 10 detik
+      }, 5000); // Cek setiap 5 detik (Lebih agresif)
     }
     return () => clearInterval(interval);
   }, [isPendingPayment, userEmail, isLoggedIn, isSyncing, checkMemberStatus]);
@@ -205,6 +208,19 @@ const App: React.FC = () => {
   };
 
   const isAdmin = useMemo(() => checkAdmin(userEmail), [userEmail]);
+
+  // Clean up Midtrans modals if we just logged in
+  useEffect(() => {
+    if (isLoggedIn) {
+      const midtransIframe = document.getElementById('snap-midtrans');
+      if (midtransIframe) midtransIframe.remove();
+      const midtransToken = document.getElementById('midtrans-token');
+      if (midtransToken) midtransToken.remove();
+      // Snap also adds a dim background
+      const dimBackground = document.querySelector('.snap-dim-background');
+      if (dimBackground) dimBackground.remove();
+    }
+  }, [isLoggedIn]);
 
   if (showStartIntro) {
     return <StartAnimation onComplete={() => setShowStartIntro(false)} />;
