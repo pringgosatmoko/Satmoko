@@ -3,13 +3,22 @@ import { createClient } from '@supabase/supabase-js';
 
 // Helper untuk mengambil environment variable di Vite (client-side) maupun Node (edge-side)
 const getEnv = (name: string): string => {
+  // Prioritas 1: process.env (Injeksi langsung)
+  if (typeof process !== 'undefined' && process.env && process.env[name]) {
+    return process.env[name] || '';
+  }
+  // Prioritas 2: import.meta.env (Standar Vite)
   // @ts-ignore
   if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env[name]) {
     // @ts-ignore
     return import.meta.env[name];
   }
-  if (typeof process !== 'undefined' && process.env && process.env[name]) {
-    return process.env[name] || '';
+  // Prioritas 3: Versi prefix VITE_ jika ada
+  const viteName = `VITE_${name}`;
+  // @ts-ignore
+  if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env[viteName]) {
+    // @ts-ignore
+    return import.meta.env[viteName];
   }
   return '';
 };
@@ -31,9 +40,10 @@ export const isAdmin = (email: string) => {
 // Password Admin Master
 export const getAdminPassword = () => 'MASTER2025';
 
-// API Key retrieval for GenAI interactions - Strictly use process.env.API_KEY
+// API Key retrieval for GenAI interactions
 export const getActiveApiKey = () => {
-  return process.env.API_KEY || '';
+  // Cek API_KEY (Persyaratan Sistem) dan VITE_API_KEY (Vite Compatibility)
+  return getEnv('API_KEY') || getEnv('VITE_API_KEY') || '';
 };
 
 // Simulate API key rotation
@@ -41,13 +51,14 @@ export const rotateApiKey = () => {
   console.log("Rotating API Key... (Internal slots shifted)");
 };
 
-// System health audit - Fix: Added slot2 and slot3 to satisfy SystemLogs.tsx requirements
+// System health audit
 export const auditApiKeys = () => {
+  const activeKey = getActiveApiKey();
   return {
     db: !!supabase,
-    slot1: !!getActiveApiKey(),
-    slot2: false, // Placeholder to fix property mismatch in SystemLogs.tsx
-    slot3: false, // Placeholder to fix property mismatch in SystemLogs.tsx
+    slot1: !!activeKey,
+    slot2: false, 
+    slot3: false, 
     telegram: !!getEnv('VITE_TELEGRAM_BOT_TOKEN'),
     activeSlot: 1
   };
