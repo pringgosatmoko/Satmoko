@@ -33,7 +33,7 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({ onBack, lang }) =>
     try {
       const ai = new GoogleGenAI({ apiKey });
       const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
+        model: 'gemini-1.5-flash',
         contents: userMsg,
         config: {
           systemInstruction: `Panggil pengguna dengan "Bro". Gaya bahasa kekinian, santai tapi cerdas. Anda adalah asisten Satmoko Studio.`,

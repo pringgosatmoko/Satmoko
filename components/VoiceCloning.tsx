@@ -35,7 +35,7 @@ export const VoiceCloning: React.FC<VoiceCloningProps> = ({ onBack, lang, userEm
       
       const ai = new GoogleGenAI({ apiKey: getActiveApiKey() });
       const response = await ai.models.generateContent({
-        model: "gemini-2.5-pro-preview-tts",
+        model: "gemini-1.5-pro-preview-tts",
         contents: [{ parts: [{ text: script }] }],
         config: {
           responseModalities: [Modality.AUDIO],

@@ -21,17 +21,19 @@ export default async function handler(req: Request) {
     // Initialize Supabase to record the transaction attempt
     const supabaseUrl = process.env.VITE_DATABASE_URL || '';
     const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON || '';
-    const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Record the pending transaction
-    await supabase.from('topup_requests').insert({
-      email: email.toLowerCase(),
-      amount: credits,
-      price: price,
-      tid: orderId,
-      status: 'pending',
-      receipt_url: 'MIDTRANS_AUTO_FLOW'
-    });
+    if (supabaseUrl && supabaseKey) {
+      const supabase = createClient(supabaseUrl, supabaseKey);
+      // Record the pending transaction
+      await supabase.from('topup_requests').insert({
+        email: email.toLowerCase(),
+        amount: credits,
+        price: price,
+        tid: orderId,
+        status: 'pending',
+        receipt_url: 'MIDTRANS_AUTO_FLOW'
+      });
+    }
 
     const authHeader = `Basic ${btoa(serverKey + ':')}`;
 

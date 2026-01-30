@@ -46,7 +46,7 @@ export const StudioCreator: React.FC<StudioCreatorProps> = ({ onBack, lang, user
       const systemPrompt = `Role: Direktur Kreatif. Proyek: "${title}". Gaya Visual: ${videoStyle}. Buat 4 adegan storyboard dalam format JSON ARRAY.`;
       
       const response = await ai.models.generateContent({
-        model: 'gemini-2.5-pro',
+        model: 'gemini-1.5-pro',
         contents: systemPrompt,
         config: { 
           responseMimeType: "application/json", 

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { supabase, isUserOnline, sendTelegramNotification } from '../lib/api';
+import { supabase, isUserOnline, sendTelegramNotification, isAdmin as checkAdmin } from '../lib/api';
 
 interface Message {
   id: string | number;
@@ -26,11 +26,10 @@ interface ContactType {
 interface DirectChatProps {
   userEmail: string;
   isAdmin: boolean;
-  adminEmail: string;
   onBack: () => void;
 }
 
-export const DirectChat: React.FC<DirectChatProps> = ({ userEmail, isAdmin, adminEmail, onBack }) => {
+export const DirectChat: React.FC<DirectChatProps> = ({ userEmail, isAdmin, onBack }) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [contacts, setContacts] = useState<ContactType[]>([]);
@@ -90,7 +89,7 @@ export const DirectChat: React.FC<DirectChatProps> = ({ userEmail, isAdmin, admi
           unread: history?.filter(msg => (msg.receiver_email || '').toLowerCase() === currentUserEmailNormalized && !msg.is_read).length || 0,
           isOnline: isUserOnline(m.last_seen),
           time: last ? new Date(last.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '',
-          isOfficial: (m.email || '').toLowerCase() === adminEmail.toLowerCase()
+          isOfficial: checkAdmin(m.email)
         };
       }).sort((a, b) => (b.unread - a.unread) || (b.isOnline ? -1 : 1));
       

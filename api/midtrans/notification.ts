@@ -45,6 +45,7 @@ export default async function handler(req: any, res: any) {
 
   try {
     // 4. Find the transaction record in topup_requests (Source of Truth)
+  // Gunakan tid atau order_id untuk pencarian
     const { data: request, error: reqError } = await supabase
       .from('topup_requests')
       .select('*')
@@ -54,12 +55,12 @@ export default async function handler(req: any, res: any) {
     let email = request?.email;
     let creditsToAdd = request?.amount;
 
-    // Fallback to searching member via metadata if not found in topup_requests (legacy support)
-    if (!request || reqError) {
+    // Fallback to searching member via metadata if not found in topup_requests
+    if (!email) {
       const { data: memberByMeta } = await supabase
         .from('members')
         .select('*')
-        .filter('metadata->>order_id', 'eq', order_id)
+        .eq('metadata->order_id', order_id)
         .maybeSingle();
 
       if (memberByMeta) {

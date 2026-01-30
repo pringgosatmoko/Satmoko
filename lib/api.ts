@@ -3,23 +3,50 @@ import { createClient } from '@supabase/supabase-js';
 
 // Helper untuk mengambil environment variable di Vite (client-side) maupun Node (edge-side)
 const getEnv = (name: string): string => {
-  // Prioritas 1: process.env (Injeksi langsung)
-  if (typeof process !== 'undefined' && process.env && process.env[name]) {
-    return process.env[name] || '';
+  // 1. Cek window.process.env (Polyfilled di index.tsx / Injeksi AI Studio)
+  if (typeof window !== 'undefined' && (window as any).process?.env) {
+    const val = (window as any).process.env[name];
+    if (val) return val;
   }
-  // Prioritas 2: import.meta.env (Standar Vite)
+
+  // 2. Cek process.env (Node/Edge runtime)
+  if (typeof process !== 'undefined' && process.env) {
+    const val = process.env[name];
+    if (val) return val;
+  }
+
+  // 3. Cek import.meta.env (Standar Vite)
   // @ts-ignore
-  if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env[name]) {
-    // @ts-ignore
-    return import.meta.env[name];
+  if (typeof import.meta !== 'undefined' && import.meta.env) {
+    // Akses dinamis
+    const val = import.meta.env[name];
+    if (val) return val;
+
+    // Manual static replacement check (Penting untuk Vercel Production)
+    if (name === 'VITE_DATABASE_URL') return import.meta.env.VITE_DATABASE_URL;
+    if (name === 'VITE_SUPABASE_ANON') return import.meta.env.VITE_SUPABASE_ANON;
+    if (name === 'VITE_API_KEY') return import.meta.env.VITE_API_KEY;
+    if (name === 'GEMINI_API_KEY') return import.meta.env.GEMINI_API_KEY;
+    if (name === 'VITE_GEMINI_API_KEY') return import.meta.env.VITE_GEMINI_API_KEY;
+    if (name === 'API_KEY') return import.meta.env.API_KEY;
+    if (name === 'VITE_TELEGRAM_BOT_TOKEN') return import.meta.env.VITE_TELEGRAM_BOT_TOKEN;
+    if (name === 'VITE_TELEGRAM_CHAT_ID') return import.meta.env.VITE_TELEGRAM_CHAT_ID;
+    if (name === 'VITE_GEMINI_API_1') return import.meta.env.VITE_GEMINI_API_1;
+    if (name === 'VITE_GEMINI_API_2') return import.meta.env.VITE_GEMINI_API_2;
+    if (name === 'VITE_GEMINI_API_3') return import.meta.env.VITE_GEMINI_API_3;
+    if (name === 'VITE_ADMIN_EMAILS') return import.meta.env.VITE_ADMIN_EMAILS;
+    if (name === 'VITE_PASSW') return import.meta.env.VITE_PASSW;
   }
-  // Prioritas 3: Versi prefix VITE_ jika ada
-  const viteName = `VITE_${name}`;
-  // @ts-ignore
-  if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env[viteName]) {
-    // @ts-ignore
-    return import.meta.env[viteName];
+
+  // 4. Cek versi prefix VITE_ jika belum ada
+  if (!name.startsWith('VITE_')) {
+    const viteName = `VITE_${name}`;
+    // Hindari loop tak terbatas dengan cek eksplisit
+    if (viteName === 'VITE_API_KEY' || viteName === 'VITE_DATABASE_URL') {
+      return getEnv(viteName);
+    }
   }
+
   return '';
 };
 
@@ -34,21 +61,56 @@ export const supabase = (supabaseUrl && supabaseKey)
 // Administrative privilege check
 export const isAdmin = (email: string) => {
   if (!email) return false;
-  return email.toLowerCase() === 'pringgosatmoko@gmail.com';
+  const adminEmails = getEnv('VITE_ADMIN_EMAILS') || 'pringgosatmoko@gmail.com';
+  const admins = adminEmails.split(',').map(e => e.trim().toLowerCase());
+  return admins.includes(email.toLowerCase());
 };
 
 // Password Admin Master
-export const getAdminPassword = () => 'MASTER2025';
+export const getAdminPassword = () => getEnv('VITE_PASSW') || 'satmoko123';
+
+// State for API key rotation
+let currentApiKeyIndex = 0;
 
 // API Key retrieval for GenAI interactions
 export const getActiveApiKey = () => {
-  // Cek API_KEY (Persyaratan Sistem) dan VITE_API_KEY (Vite Compatibility)
-  return getEnv('API_KEY') || getEnv('VITE_API_KEY') || '';
+  // 1. Prioritas Utama: Injeksi AI Studio (window.process.env)
+  if (typeof window !== 'undefined' && (window as any).process?.env?.API_KEY) {
+    return (window as any).process.env.API_KEY;
+  }
+
+  // 2. Cek via slot rotasi (VITE_GEMINI_API_1, 2, 3)
+  const slots = ['VITE_GEMINI_API_1', 'VITE_GEMINI_API_2', 'VITE_GEMINI_API_3'];
+  const rotatedKey = getEnv(slots[currentApiKeyIndex]);
+  if (rotatedKey) return rotatedKey;
+
+  // 3. Fallback exhaustive search
+  const fallback = getEnv('VITE_API_KEY') ||
+                   getEnv('VITE_GEMINI_API_KEY') ||
+                   getEnv('GEMINI_API_KEY') ||
+                   getEnv('API_KEY') ||
+                   getEnv('VITE_GEMINI_API_1'); // Re-check slot 1 as last resort
+
+  if (fallback) return fallback;
+
+  // 4. Direct access untuk Vite build-time replacement (Vercel safety)
+  // @ts-ignore
+  if (typeof import.meta !== 'undefined' && import.meta.env) {
+    return import.meta.env.VITE_GEMINI_API_1 ||
+           import.meta.env.VITE_API_KEY ||
+           import.meta.env.VITE_GEMINI_API_KEY ||
+           import.meta.env.GEMINI_API_KEY ||
+           import.meta.env.API_KEY ||
+           '';
+  }
+
+  return '';
 };
 
-// Simulate API key rotation
+// Rotate API Key slot
 export const rotateApiKey = () => {
-  console.log("Rotating API Key... (Internal slots shifted)");
+  currentApiKeyIndex = (currentApiKeyIndex + 1) % 3;
+  console.log(`Rotating to API Key Slot ${currentApiKeyIndex + 1}`);
 };
 
 // System health audit
@@ -266,6 +328,8 @@ export const processMidtransTopup = async (email: string, credits: number, order
 
     if (request && request.status === 'approved') {
       console.log(`[IDEMPOTENCY] Order ${orderId} already processed.`);
+      // Pastikan status member tetap active jika request sudah approve
+      await supabase.from('members').update({ status: 'active' }).eq('email', email.toLowerCase());
       return true;
     }
 

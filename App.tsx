@@ -182,6 +182,20 @@ const App: React.FC = () => {
     return () => subscription.unsubscribe();
   }, [checkMemberStatus]);
 
+  // Polling logic for pending payments
+  useEffect(() => {
+    let interval: any;
+    if (isPendingPayment && userEmail && !isLoggedIn) {
+      interval = setInterval(() => {
+        // Hanya cek jika tidak sedang syncing
+        if (!isSyncing) {
+          checkMemberStatus(userEmail);
+        }
+      }, 10000); // Cek setiap 10 detik
+    }
+    return () => clearInterval(interval);
+  }, [isPendingPayment, userEmail, isLoggedIn, isSyncing, checkMemberStatus]);
+
   const handleLogout = async () => {
     if (supabase) await supabase.auth.signOut();
     setIsLoggedIn(false);
@@ -238,7 +252,7 @@ const App: React.FC = () => {
 
     switch (activeTab) {
       case 'home': return <HomeView key={`home-${userEmail}`} userFullName={userFullName} userEmail={userEmail} credits={credits} isPro={isPro} onAction={(act) => setSubView(act)} onLogout={handleLogout} />;
-      case 'play': return <DirectChat userEmail={userEmail} isAdmin={isAdmin} adminEmail="pringgosatmoko@gmail.com" onBack={() => setActiveTab('home')} />;
+      case 'play': return <DirectChat userEmail={userEmail} isAdmin={isAdmin} onBack={() => setActiveTab('home')} />;
       case 'explore': return <ChatAssistant onBack={() => setActiveTab('home')} lang="id" />;
       case 'profile': return <ProfileView key={`profile-${userEmail}`} userFullName={userFullName} userEmail={userEmail} credits={credits} isPro={isPro} isAdmin={isAdmin} onLogout={handleLogout} onAction={(act) => setSubView(act)} />;
       default: return <HomeView userFullName={userFullName} userEmail={userEmail} credits={credits} isPro={isPro} onAction={() => {}} onLogout={handleLogout} />;

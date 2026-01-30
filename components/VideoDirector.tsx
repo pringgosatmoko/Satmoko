@@ -74,7 +74,7 @@ export const VideoDirector: React.FC<VideoDirectorProps> = ({ onBack, lang, user
       const ai = new GoogleGenAI({ apiKey: getActiveApiKey() });
       const systemInstruction = `Role: AI Video Director. Task: Breakdown story into 8s segments. Style: ${visualStyle}. Output JSON.`;
       const response = await ai.models.generateContent({
-        model: 'gemini-2.5-pro',
+        model: 'gemini-1.5-pro',
         contents: `Breakdown this story: \n\n${story}`,
         config: {
           systemInstruction,

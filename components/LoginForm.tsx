@@ -37,14 +37,29 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, lang, initialEm
     const orderId = `SAT-${Math.random().toString(36).substr(2, 7).toUpperCase()}`;
 
     try {
-      // 1. Buat record member dulu dengan status pending agar webhook tidak gagal cari data
+      // 1. Lakukan pendaftaran akun ke Supabase Auth terlebih dahulu
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: emailLower,
+        password: password,
+        options: { data: { full_name: fullName } }
+      });
+
+      if (authError && !authError.message.includes('already registered')) {
+        throw authError;
+      }
+
+      // 2. Buat/Update record member
       const isFree = pkg.price === 0;
+
+      // Ambil data member lama jika ada untuk menjaga kredit yang sudah ada
+      const { data: existingMember } = await supabase.from('members').select('*').eq('email', emailLower).maybeSingle();
+
       const { error: dbError } = await supabase.from('members').upsert([{ 
         email: emailLower, 
-        status: isFree ? 'active' : 'pending', 
-        full_name: fullName || emailLower.split('@')[0],
-        credits: isFree ? 100 : 0,
-        valid_until: isFree ? new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() : null,
+        status: (existingMember?.status === 'active' || isFree) ? 'active' : 'pending',
+        full_name: fullName || existingMember?.full_name || emailLower.split('@')[0],
+        credits: (existingMember?.credits || 0) + (isFree ? 100 : 0),
+        valid_until: isFree ? new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() : existingMember?.valid_until,
         metadata: { 
           plan_id: pkg.id, 
           price: pkg.price, 
@@ -54,18 +69,9 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, lang, initialEm
         }
       }]);
 
-      if (dbError) throw dbError;
-
-      // 2. Lakukan pendaftaran akun ke Supabase Auth
-      const { error: authError } = await supabase.auth.signUp({
-        email: emailLower,
-        password: password,
-        options: { data: { full_name: fullName } }
-      });
-
-      if (authError) {
-        // Jika user sudah ada tapi belum bayar, kita biarkan saja lanjut ke login
-        if (!authError.message.includes('already registered')) throw authError;
+      if (dbError) {
+        console.warn("Database error during registration:", dbError);
+        // Tetap lanjut jika error database tapi auth berhasil (bisa diperbaiki saat login)
       }
 
       logActivity('NEW_USER_REGISTERED', `User ${emailLower} registered for plan ${pkg.id}`);

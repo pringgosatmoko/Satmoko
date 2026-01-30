@@ -15,8 +15,8 @@ interface ProfileViewProps {
 export const ProfileView: React.FC<ProfileViewProps> = ({ userEmail, userFullName, credits, isPro, isAdmin, onLogout, onAction }) => {
   const username = userFullName || userEmail.split('@')[0];
   
-  // Fail-safe check: Jika nama adalah MASTER ADMIN, maka dia adalah admin
-  const isActuallyAdmin = isAdmin || userFullName === "MASTER ADMIN" || userEmail.toLowerCase() === 'pringgosatmoko@gmail.com';
+  // Fail-safe check: Jika nama adalah MASTER ADMIN atau status isAdmin true
+  const isActuallyAdmin = isAdmin || userFullName === "MASTER ADMIN";
 
   const getPlanLabel = () => {
     if (isActuallyAdmin) return "MASTER ADMIN";
