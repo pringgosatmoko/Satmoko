@@ -1,7 +1,8 @@
+
 import React, { useState, useEffect } from 'react';
 import { GoogleGenAI } from '@google/genai';
 import { motion, AnimatePresence } from 'framer-motion';
-import { deductCredits, getSystemSettings, rotateApiKey, getActiveApiKey, isAdmin as checkAdmin } from '../lib/api';
+import { deductCredits, getSystemSettings, rotateApiKey, getActiveApiKey, isAdmin as checkAdmin, logActivity } from '../lib/api';
 
 interface ImageGeneratorProps { 
   onBack: () => void; 
@@ -127,6 +128,8 @@ export const ImageGenerator: React.FC<ImageGeneratorProps> = ({ onBack, userEmai
         const imgData = `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
         setResult(imgData);
         setHistory(prev => [imgData, ...prev].slice(0, 10));
+        // Logging aktivitas ke Telegram
+        logActivity('IMAGE_GEN_SUCCESS', `User ${userEmail} generated image with ${modelName}. Prompt: ${cleanPrompt.substring(0, 50)}...`);
       } else {
         throw new Error("MESIN TIDAK MENGEMBALIKAN DATA GAMBAR. COBA PROMPT LAIN.");
       }
@@ -162,7 +165,7 @@ export const ImageGenerator: React.FC<ImageGeneratorProps> = ({ onBack, userEmai
             <i className="fa-solid fa-question text-sm"></i>
           </button>
         </div>
-        <h1 className="text-3xl font-black mb-1 tracking-tight">AI Image Studio</h1>
+        <h1 className="text-3xl font-black mb-1 tracking-tight uppercase italic">AI Image <span className="text-cyan-400">Studio</span></h1>
         <p className="text-[10px] text-slate-500 font-black uppercase tracking-[0.4em]">Neural Engine v2.5</p>
       </header>
 
