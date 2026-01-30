@@ -2,7 +2,8 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { LoginForm } from './components/LoginForm';
 import { InfoOverlay } from './components/InfoOverlay';
-import { isAdmin as checkAdmin, supabase, updateMemberStatus, verifyMidtransPayment, processMidtransTopup, logActivity } from './lib/api';
+// Fix: Removed non-existent verifyMidtransPayment import
+import { isAdmin as checkAdmin, supabase, updateMemberStatus, processMidtransTopup, logActivity } from './lib/api';
 import { AnimatePresence, motion } from 'framer-motion';
 
 // Elements
