@@ -100,7 +100,7 @@ export const ImageGenerator: React.FC<ImageGeneratorProps> = ({ onBack, userEmai
       if (!apiKey) throw new Error("API KEY TIDAK TERKONFIGURASI DI NEURAL ENGINE.");
 
       const ai = new GoogleGenAI({ apiKey });
-      const modelName = modelType === 'Nano Banana Pro' ? 'gemini-1.5-pro' : 'gemini-1.5-flash-image-preview';
+      const modelName = modelType === 'Nano Banana Pro' ? 'gemini-1.5-pro' : 'gemini-1.5-flash';
       
       const parts: any[] = referenceImages.map(img => ({
         inlineData: {
@@ -118,7 +118,7 @@ export const ImageGenerator: React.FC<ImageGeneratorProps> = ({ onBack, userEmai
         config: { 
           imageConfig: { 
             aspectRatio: aspectRatio as any, 
-            imageSize: modelName === 'gemini-1.5-flash-image-preview' ? '1K' : undefined
+            imageSize: modelName === 'gemini-1.5-flash' ? '1K' : undefined
           } 
         }
       });

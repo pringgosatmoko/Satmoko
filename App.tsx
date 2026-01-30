@@ -31,7 +31,7 @@ import { TopupManager } from './components/TopupManager';
 export type Tab = 'home' | 'play' | 'create' | 'explore' | 'profile';
 
 const App: React.FC = () => {
-  const [showStartIntro, setShowStartIntro] = useState(true);
+  const [showStartIntro, setShowStartIntro] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isPendingPayment, setIsPendingPayment] = useState(false);
   const [isCheckingSession, setIsCheckingSession] = useState(true);

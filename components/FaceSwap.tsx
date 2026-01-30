@@ -81,7 +81,7 @@ export const FaceSwap: React.FC<FaceSwapProps> = ({ onBack, userEmail, credits, 
       if (!apiKey) throw new Error("API KEY TIDAK DITEMUKAN.");
 
       const ai = new GoogleGenAI({ apiKey });
-      const modelName = engineType === 'Pro' ? 'gemini-1.5-pro' : 'gemini-1.5-flash-image-preview';
+      const modelName = engineType === 'Pro' ? 'gemini-1.5-pro' : 'gemini-1.5-flash';
       
       const promptText = `
         DEEPFAKE MISSION: 
@@ -104,7 +104,7 @@ export const FaceSwap: React.FC<FaceSwapProps> = ({ onBack, userEmail, credits, 
         config: {
           imageConfig: {
             aspectRatio: "1:1",
-            imageSize: modelName === 'gemini-1.5-flash-image-preview' ? '1K' : undefined
+            imageSize: modelName === 'gemini-1.5-flash' ? '1K' : undefined
           }
         }
       });

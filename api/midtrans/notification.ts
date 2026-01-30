@@ -1,6 +1,6 @@
 
 import { createClient } from '@supabase/supabase-js';
-import crypto from 'crypto';
+import * as crypto from 'crypto';
 
 export const config = {
   runtime: 'nodejs',
@@ -21,7 +21,7 @@ export default async function handler(req: any, res: any) {
     fraud_status 
   } = payload;
 
-  console.log(`[MIDTRANS-WEBHOOK] Received: ${order_id} | Status: ${transaction_status}`);
+  console.log(`[MIDTRANS-WEBHOOK] Received: \${order_id} | Status: \${transaction_status}`);
 
   // 1. Bypass Test Notifications
   if (!order_id || order_id.includes('test') || order_id.includes('notif_test')) {
@@ -45,7 +45,6 @@ export default async function handler(req: any, res: any) {
 
   try {
     // 4. Find the transaction record in topup_requests (Source of Truth)
-  // Gunakan tid atau order_id untuk pencarian
     const { data: request, error: reqError } = await supabase
       .from('topup_requests')
       .select('*')
@@ -70,13 +69,13 @@ export default async function handler(req: any, res: any) {
     }
 
     if (!email) {
-      console.warn(`[DB] No transaction or member found for Order ID: ${order_id}`);
+      console.warn(`[DB] No transaction or member found for Order ID: \${order_id}`);
       return res.status(200).send('Order not tracked');
     }
 
     // 5. Check if already processed to prevent double crediting
     if (request && request.status === 'approved') {
-       console.log(`[IDEMPOTENCY] Order ${order_id} already processed.`);
+       console.log(`[IDEMPOTENCY] Order \${order_id} already processed.`);
        return res.status(200).send('OK - Already Processed');
     }
 
@@ -130,20 +129,20 @@ export default async function handler(req: any, res: any) {
         const botToken = process.env.VITE_TELEGRAM_BOT_TOKEN;
         const chatId = process.env.VITE_TELEGRAM_CHAT_ID;
         if (botToken && chatId) {
-          const text = `✅ *WEBHOOK: PEMBAYARAN SUKSES*\n\nUser: ${email}\nOrder: ${order_id}\nCredits: +${creditsToAdd}\nStatus: COMPLETED`;
-          await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+          const text = `✅ *WEBHOOK: PEMBAYARAN SUKSES*\n\nUser: \${email}\nOrder: \${order_id}\nCredits: +\${creditsToAdd}\nStatus: COMPLETED`;
+          await fetch(`https://api.telegram.org/bot\${botToken}/sendMessage`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'Markdown' })
           });
         }
-        console.log(`[SUCCESS] User ${email} processed via Webhook.`);
+        console.log(`[SUCCESS] User \${email} processed via Webhook.`);
       }
     } else if (['deny', 'cancel', 'expire'].includes(transaction_status)) {
       if (request) {
         await supabase.from('topup_requests').update({ status: 'failed' }).eq('id', request.id);
       }
-      console.log(`[FAILED] Order ${order_id} marked as failed.`);
+      console.log(`[FAILED] Order \${order_id} marked as failed.`);
     }
 
     return res.status(200).send('OK');
