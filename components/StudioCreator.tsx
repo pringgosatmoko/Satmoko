@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { GoogleGenAI, Type } from '@google/genai';
 import { motion, AnimatePresence } from 'framer-motion';
-import { deductCredits, getSystemSettings, rotateApiKey } from '../lib/api';
+import { deductCredits, getSystemSettings, rotateApiKey, getActiveApiKey } from '../lib/api';
 
 interface StoryboardItem {
   scene: string;
@@ -42,11 +42,11 @@ export const StudioCreator: React.FC<StudioCreatorProps> = ({ onBack, lang, user
       }
 
       // Initialize Gemini API client inside the method to ensure correct context usage
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      const ai = new GoogleGenAI({ apiKey: getActiveApiKey() });
       const systemPrompt = `Role: Direktur Kreatif. Proyek: "${title}". Gaya Visual: ${videoStyle}. Buat 4 adegan storyboard dalam format JSON ARRAY.`;
       
       const response = await ai.models.generateContent({
-        model: 'gemini-3-pro-preview', 
+        model: 'gemini-2.5-pro',
         contents: systemPrompt,
         config: { 
           responseMimeType: "application/json", 

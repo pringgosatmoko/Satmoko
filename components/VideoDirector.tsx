@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { GoogleGenAI, Type } from '@google/genai';
-import { deductCredits, getSystemSettings, rotateApiKey, isAdmin as checkAdmin } from '../lib/api';
+import { deductCredits, getSystemSettings, rotateApiKey, isAdmin as checkAdmin, getActiveApiKey } from '../lib/api';
 
 interface VideoSegment {
   number: number;
@@ -71,10 +71,10 @@ export const VideoDirector: React.FC<VideoDirectorProps> = ({ onBack, lang, user
     addLog("Sutradara AI sedang membedah naskah...", "info");
 
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      const ai = new GoogleGenAI({ apiKey: getActiveApiKey() });
       const systemInstruction = `Role: AI Video Director. Task: Breakdown story into 8s segments. Style: ${visualStyle}. Output JSON.`;
       const response = await ai.models.generateContent({
-        model: 'gemini-3-pro-preview',
+        model: 'gemini-2.5-pro',
         contents: `Breakdown this story: \n\n${story}`,
         config: {
           systemInstruction,
@@ -119,7 +119,7 @@ export const VideoDirector: React.FC<VideoDirectorProps> = ({ onBack, lang, user
     try {
       if (retryCount === 0 && !isAdmin) { await deductCredits(userEmail, costVideo); refreshCredits(); }
 
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      const ai = new GoogleGenAI({ apiKey: getActiveApiKey() });
       const seg = segments[index];
       const fullPrompt = `${seg.visualDescription}. Style: ${visualStyle}. Action: ${seg.action}`;
 
@@ -137,7 +137,7 @@ export const VideoDirector: React.FC<VideoDirectorProps> = ({ onBack, lang, user
 
       const uri = operation.response?.generatedVideos?.[0]?.video?.uri;
       if (uri) {
-        const resp = await fetch(`${uri}&key=${process.env.API_KEY}`);
+        const resp = await fetch(`${uri}&key=${getActiveApiKey()}`);
         const blob = await resp.blob();
         setSegments(prev => prev.map((s, i) => i === index ? { ...s, videoUrl: URL.createObjectURL(blob), isRendering: false } : s));
         addLog(`Segmen #${index + 1} Selesai!`, "success");

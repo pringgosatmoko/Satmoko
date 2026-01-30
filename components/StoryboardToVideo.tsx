@@ -1,7 +1,7 @@
 import { GoogleGenAI, VideoGenerationReferenceType, Type } from '@google/genai';
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { deductCredits, getSystemSettings, rotateApiKey } from '../lib/api';
+import { deductCredits, getSystemSettings, rotateApiKey, getActiveApiKey } from '../lib/api';
 
 interface StoryboardToVideoProps {
   onBack: () => void;
@@ -133,7 +133,7 @@ export const StoryboardToVideo: React.FC<StoryboardToVideoProps> = ({ onBack, la
         refreshCredits();
       }
 
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
+      const ai = new GoogleGenAI({ apiKey: getActiveApiKey() });
       
       const analysisPrompt = `Analyze and break this script into exactly ${numScenes} distinct chronological visual keyframes. 
       Maintain strict consistency in characters, costumes, and environment lighting across all scenes. 
@@ -142,7 +142,7 @@ export const StoryboardToVideo: React.FC<StoryboardToVideoProps> = ({ onBack, la
       Style: ${videoStyle}`;
 
       const analysisResponse = await ai.models.generateContent({
-        model: 'gemini-3-pro-preview',
+        model: 'gemini-2.5-pro',
         contents: [{ parts: [{ text: analysisPrompt }] }],
         config: { 
           responseMimeType: "application/json",
@@ -164,9 +164,9 @@ export const StoryboardToVideo: React.FC<StoryboardToVideoProps> = ({ onBack, la
         let imgRetry = 0;
         while (!success && imgRetry < 3) {
            try {
-              const currentAi = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
+              const currentAi = new GoogleGenAI({ apiKey: getActiveApiKey() });
               const imgResponse = await currentAi.models.generateContent({
-                model: 'gemini-2.5-flash-image',
+                model: 'gemini-2.5-flash-image-preview',
                 contents: { parts: [{ text: `${prompts[i]}. Cinematic high-end production, matches style: ${videoStyle}.` }] },
                 config: {
                   imageConfig: { aspectRatio: aspectRatio === '21:9' ? '16:9' : (aspectRatio as any) }
@@ -235,7 +235,7 @@ export const StoryboardToVideo: React.FC<StoryboardToVideoProps> = ({ onBack, la
         refreshCredits();
       }
 
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
+      const ai = new GoogleGenAI({ apiKey: getActiveApiKey() });
       const finalPrompt = `Animate a high-quality cinematic video following this chronological storyboard: ${storyboard}. 
       Visual Style: ${videoStyle}. 
       Follow the visual flow of the provided reference images. Smooth camera motion, 4k detail.`;
@@ -272,7 +272,7 @@ export const StoryboardToVideo: React.FC<StoryboardToVideoProps> = ({ onBack, la
 
       const downloadLink = operation.response?.generatedVideos?.[0]?.video?.uri;
       if (downloadLink) {
-        const response = await fetch(`${downloadLink}&key=${process.env.API_KEY}`);
+        const response = await fetch(`${downloadLink}&key=${getActiveApiKey()}`);
         const blob = await response.blob();
         setVideoUrl(URL.createObjectURL(blob as Blob));
         addLog("Video sinematik selesai dikonstruksi!", "success");

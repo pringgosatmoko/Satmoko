@@ -1,4 +1,6 @@
 
+import { createClient } from '@supabase/supabase-js';
+
 export const config = {
   runtime: 'edge',
 };
@@ -11,11 +13,25 @@ export default async function handler(req: Request) {
   try {
     const { email, credits, price, orderId } = await req.json();
 
-    // Ambil Key dari server, JANGAN kirim dari client!
     const serverKey = process.env.VITE_MIDTRANS_SERVER_ID || '';
     if (!serverKey) {
       return new Response(JSON.stringify({ error: 'Server Key missing in environment' }), { status: 500 });
     }
+
+    // Initialize Supabase to record the transaction attempt
+    const supabaseUrl = process.env.VITE_DATABASE_URL || '';
+    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON || '';
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
+    // Record the pending transaction
+    await supabase.from('topup_requests').insert({
+      email: email.toLowerCase(),
+      amount: credits,
+      price: price,
+      tid: orderId,
+      status: 'pending',
+      receipt_url: 'MIDTRANS_AUTO_FLOW'
+    });
 
     const authHeader = `Basic ${btoa(serverKey + ':')}`;
 
@@ -50,6 +66,7 @@ export default async function handler(req: Request) {
       headers: { 'Content-Type': 'application/json' }
     });
   } catch (error: any) {
+    console.error("[MIDTRANS-API] Error:", error.message);
     return new Response(JSON.stringify({ error: error.message }), { status: 500 });
   }
 }

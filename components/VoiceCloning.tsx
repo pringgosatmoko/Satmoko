@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { GoogleGenAI, Modality } from '@google/genai';
 import { motion } from 'framer-motion';
-import { deductCredits, getSystemSettings, rotateApiKey } from '../lib/api';
+import { deductCredits, getSystemSettings, rotateApiKey, getActiveApiKey } from '../lib/api';
 
 interface VoiceCloningProps {
   onBack: () => void;
@@ -33,9 +33,9 @@ export const VoiceCloning: React.FC<VoiceCloningProps> = ({ onBack, lang, userEm
         refreshCredits();
       }
       
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      const ai = new GoogleGenAI({ apiKey: getActiveApiKey() });
       const response = await ai.models.generateContent({
-        model: "gemini-2.5-flash-preview-tts",
+        model: "gemini-2.5-pro-preview-tts",
         contents: [{ parts: [{ text: script }] }],
         config: {
           responseModalities: [Modality.AUDIO],

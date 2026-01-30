@@ -199,6 +199,20 @@ export const deleteAccountPermanently = async (email: string) => {
   return !error;
 };
 
+// Verify the status of a Midtrans payment
+export const verifyMidtransPayment = async (orderId: string) => {
+  try {
+    const res = await fetch('/api/verify-payment', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ orderId })
+    });
+    return await res.json();
+  } catch (e) {
+    return { isPaid: false };
+  }
+};
+
 // Handle manual topup requests
 export const requestTopup = async (email: string, amount: number, price: number, receiptUrl: string) => {
   if (!supabase) return { success: false, tid: 'ERROR' };
@@ -243,13 +257,29 @@ export const approveTopup = async (id: number) => {
 export const processMidtransTopup = async (email: string, credits: number, orderId: string) => {
   if (!supabase) return false;
   try {
+    // 1. Check if already processed (Idempotency)
+    const { data: request } = await supabase
+      .from('topup_requests')
+      .select('status')
+      .eq('tid', orderId)
+      .maybeSingle();
+
+    if (request && request.status === 'approved') {
+      console.log(`[IDEMPOTENCY] Order ${orderId} already processed.`);
+      return true;
+    }
+
     const { data: member } = await supabase.from('members').select('credits').eq('email', email.toLowerCase()).single();
     if (member) {
+      // 2. Apply credits and update status
       const { error } = await supabase.from('members').update({ 
         credits: (member.credits || 0) + credits,
         status: 'active'
       }).eq('email', email.toLowerCase());
+
       if (!error) {
+        // 3. Mark request as approved to prevent double crediting
+        await supabase.from('topup_requests').update({ status: 'approved' }).eq('tid', orderId);
         logActivity('TOPUP_PROCESSED_AUTO', `User ${email} auto topup ${credits} CR (Order: ${orderId})`);
       }
       return !error;

@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { GoogleGenAI } from '@google/genai';
 import { motion, AnimatePresence } from 'framer-motion';
-import { deductCredits, getSystemSettings, rotateApiKey, isAdmin as checkAdmin } from '../lib/api';
+import { deductCredits, getSystemSettings, rotateApiKey, isAdmin as checkAdmin, getActiveApiKey } from '../lib/api';
 
 interface AspectRatioEditorProps {
   onBack: () => void;
@@ -69,15 +69,15 @@ export const AspectRatioEditor: React.FC<AspectRatioEditorProps> = ({ onBack, la
         refreshCredits();
       }
 
-      // Initialization: Use process.env.API_KEY directly when initializing.
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      // Initialization: Use getActiveApiKey() for reliable retrieval.
+      const ai = new GoogleGenAI({ apiKey: getActiveApiKey() });
       
       const promptText = `This is a Smart Outpainting task. Extend the background of the provided image to fill a ${aspectRatio} aspect ratio perfectly. 
       Analyze the textures, lighting, and composition of the original image and generate new matching content for the empty areas. 
       Maintain high quality and professional seamless blending.`;
 
       const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash-image',
+        model: 'gemini-2.5-flash-image-preview',
         contents: { 
           parts: [
             { inlineData: { data: sourceImage.split(',')[1], mimeType: 'image/png' } }, 

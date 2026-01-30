@@ -2,8 +2,7 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { LoginForm } from './components/LoginForm';
 import { InfoOverlay } from './components/InfoOverlay';
-// Fix: Removed non-existent verifyMidtransPayment import
-import { isAdmin as checkAdmin, supabase, updateMemberStatus, processMidtransTopup, logActivity } from './lib/api';
+import { isAdmin as checkAdmin, supabase, updateMemberStatus, verifyMidtransPayment, processMidtransTopup, logActivity } from './lib/api';
 import { AnimatePresence, motion } from 'framer-motion';
 
 // Elements
@@ -105,6 +104,16 @@ const App: React.FC = () => {
           setIsPendingPayment(false);
         } else {
           const planMeta = member.metadata || {};
+
+          // Auto-verify Midtrans status for pending users
+          if (planMeta.order_id) {
+            const verification = await verifyMidtransPayment(planMeta.order_id);
+            if (verification.isPaid) {
+              await processMidtransTopup(emailLower, planMeta.credits || 1000, planMeta.order_id);
+              return checkMemberStatus(emailLower); // Refresh status
+            }
+          }
+
           setPendingPlan(planMeta);
           setUserEmail(emailLower);
           setUserFullName(member.full_name || "");
