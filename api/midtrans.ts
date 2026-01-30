@@ -11,11 +11,22 @@ export default async function handler(req: Request) {
   }
 
   try {
-    const { email, credits, price, orderId } = await req.json();
+    let body;
+    try {
+      body = await req.json();
+    } catch (e) {
+      return new Response(JSON.stringify({ error: 'Invalid JSON body' }), { status: 400 });
+    }
 
-    const serverKey = process.env.VITE_MIDTRANS_SERVER_ID || '';
+    const { email, credits, price, orderId } = body;
+
+    if (!email || !credits || !price || !orderId) {
+      return new Response(JSON.stringify({ error: 'Missing required parameters' }), { status: 400 });
+    }
+
+    const serverKey = process.env.VITE_MIDTRANS_SERVER_ID || process.env.MIDTRANS_SERVER_KEY || '';
     if (!serverKey) {
-      return new Response(JSON.stringify({ error: 'Server Key missing in environment' }), { status: 500 });
+      return new Response(JSON.stringify({ error: 'Midtrans Server Key missing' }), { status: 500 });
     }
 
     // Initialize Supabase to record the transaction attempt
@@ -26,13 +37,13 @@ export default async function handler(req: Request) {
       const supabase = createClient(supabaseUrl, supabaseKey);
       // Record the pending transaction
       await supabase.from('topup_requests').insert({
-        email: email.toLowerCase(),
+        email: email.toLowerCase().trim(),
         amount: credits,
         price: price,
         tid: orderId,
         status: 'pending',
         receipt_url: 'MIDTRANS_AUTO_FLOW'
-      });
+      }).catch(err => console.error("DB Log Error:", err));
     }
 
     const authHeader = `Basic ${btoa(serverKey + ':')}`;
@@ -50,7 +61,7 @@ export default async function handler(req: Request) {
           gross_amount: price
         },
         customer_details: {
-          email: email,
+          email: email.trim(),
           first_name: email.split('@')[0]
         },
         item_details: [{

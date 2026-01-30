@@ -9,11 +9,18 @@ export default async function handler(req: Request) {
   }
 
   try {
-    const { orderId } = await req.json();
-    const serverKey = process.env.VITE_MIDTRANS_SERVER_ID || '';
+    let body;
+    try {
+      body = await req.json();
+    } catch (e) {
+      return new Response(JSON.stringify({ error: 'Invalid JSON body' }), { status: 400 });
+    }
+
+    const { orderId } = body;
+    const serverKey = process.env.VITE_MIDTRANS_SERVER_ID || process.env.MIDTRANS_SERVER_KEY || '';
 
     if (!orderId || !serverKey) {
-      return new Response(JSON.stringify({ error: 'Missing parameters' }), { status: 400 });
+      return new Response(JSON.stringify({ error: 'Missing parameters (orderId or serverKey)' }), { status: 400 });
     }
 
     const authHeader = `Basic ${btoa(serverKey + ':')}`;
@@ -39,6 +46,7 @@ export default async function handler(req: Request) {
       headers: { 'Content-Type': 'application/json' }
     });
   } catch (error: any) {
+    console.error("[VERIFY-PAYMENT] Error:", error.message);
     return new Response(JSON.stringify({ error: error.message }), { status: 500 });
   }
 }
