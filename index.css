@@ -1,0 +1,53 @@
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg-main: #050505;
+  --panel-bg: #121212;
+  --accent-purple: #8B5CF6;
+  --accent-fuchsia: #D946EF;
+}
+
+body {
+  background-color: var(--bg-main);
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  color: #f8fafc;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.rounded-imagine {
+  border-radius: 2rem;
+}
+
+.rounded-imagine-lg {
+  border-radius: 2.5rem;
+}
+
+.glass-imagine {
+  background: rgba(18, 18, 18, 0.7);
+  backdrop-filter: blur(25px);
+  -webkit-backdrop-filter: blur(25px);
+  border: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.bg-purple-gradient {
+  background: linear-gradient(135deg, var(--accent-purple) 0%, var(--accent-fuchsia) 100%);
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Transitions */
+.view-enter { opacity: 0; transform: translateY(10px); }
+.view-enter-active { opacity: 1; transform: translateY(0); transition: all 0.3s ease-out; }
