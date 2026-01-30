@@ -91,7 +91,7 @@ export const StartAnimation: React.FC<StartAnimationProps> = ({ onComplete }) =>
                       key={i} 
                       className={`text-[10px] leading-relaxed tracking-wider ${logStr.includes('Success') ? 'text-green-400 font-bold' : 'text-slate-400'}`}
                     >
-                      <span className="text-slate-700 mr-2">>></span> {logStr}
+                      <span className="text-slate-700 mr-2">&gt;&gt;</span> {logStr}
                     </motion.p>
                   );
                 })}
