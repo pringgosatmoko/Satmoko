@@ -1,11 +1,23 @@
 
 import { createClient } from '@supabase/supabase-js';
 
-// Ambil variabel lingkungan dengan fallback
-const supabaseUrl = process.env.VITE_DATABASE_URL || '';
-const supabaseKey = process.env.VITE_SUPABASE_ANON || '';
+// Helper untuk mengambil environment variable di Vite (client-side) maupun Node (edge-side)
+const getEnv = (name: string): string => {
+  // @ts-ignore
+  if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env[name]) {
+    // @ts-ignore
+    return import.meta.env[name];
+  }
+  if (typeof process !== 'undefined' && process.env && process.env[name]) {
+    return process.env[name] || '';
+  }
+  return '';
+};
 
-// Buat client hanya jika variabel tersedia untuk mencegah crash "supabaseUrl is required"
+const supabaseUrl = getEnv('VITE_DATABASE_URL');
+const supabaseKey = getEnv('VITE_SUPABASE_ANON');
+
+// Inisialisasi Supabase Client
 export const supabase = (supabaseUrl && supabaseKey) 
   ? createClient(supabaseUrl, supabaseKey) 
   : null as any;
@@ -16,10 +28,10 @@ export const isAdmin = (email: string) => {
   return email.toLowerCase() === 'pringgosatmoko@gmail.com';
 };
 
-// Retrieve admin password for secure login
+// Password Admin Master
 export const getAdminPassword = () => 'MASTER2025';
 
-// API Key retrieval for GenAI interactions
+// API Key retrieval for GenAI interactions - Strictly use process.env.API_KEY
 export const getActiveApiKey = () => {
   return process.env.API_KEY || '';
 };
@@ -29,30 +41,35 @@ export const rotateApiKey = () => {
   console.log("Rotating API Key... (Internal slots shifted)");
 };
 
-// System health audit
+// System health audit - Fix: Added slot2 and slot3 to satisfy SystemLogs.tsx requirements
 export const auditApiKeys = () => {
   return {
     db: !!supabase,
-    slot1: !!process.env.API_KEY,
-    slot2: true,
-    slot3: true,
-    telegram: !!process.env.VITE_TELEGRAM_BOT_TOKEN,
+    slot1: !!getActiveApiKey(),
+    slot2: false, // Placeholder to fix property mismatch in SystemLogs.tsx
+    slot3: false, // Placeholder to fix property mismatch in SystemLogs.tsx
+    telegram: !!getEnv('VITE_TELEGRAM_BOT_TOKEN'),
     activeSlot: 1
   };
 };
 
 // Send notifications via Telegram bot
 export const sendTelegramNotification = async (text: string) => {
-  const botToken = process.env.VITE_TELEGRAM_BOT_TOKEN;
-  const chatId = process.env.VITE_TELEGRAM_CHAT_ID;
-  if (!botToken || !chatId) return;
+  const botToken = getEnv('VITE_TELEGRAM_BOT_TOKEN');
+  const chatId = getEnv('VITE_TELEGRAM_CHAT_ID');
+  if (!botToken || !chatId) {
+    console.warn("Telegram Config Missing:", { botToken: !!botToken, chatId: !!chatId });
+    return;
+  }
   try {
     await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'Markdown' })
     });
-  } catch (e) {}
+  } catch (e) {
+    console.error("Telegram Error:", e);
+  }
 };
 
 // Log generic activity to Telegram
@@ -208,20 +225,6 @@ export const approveTopup = async (id: number) => {
     return false;
   } catch (e) {
     return false;
-  }
-};
-
-// Verify the status of a Midtrans payment
-export const verifyMidtransPayment = async (orderId: string) => {
-  try {
-    const res = await fetch('/api/verify-payment', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ orderId })
-    });
-    return await res.json();
-  } catch (e) {
-    return { isPaid: false };
   }
 };
 
