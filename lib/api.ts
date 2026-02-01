@@ -3,7 +3,8 @@ import { createClient } from '@supabase/supabase-js';
 /**
  * lib/api.ts
  * - Client-safe helpers and compatibility shims.
- * - NO server secrets here. Implement server endpoints for operations that need secrets.
+ * - Provide wrappers/stubs for functions used across the app so the client bundle builds.
+ * - DO NOT put server-only secrets here. Implement server endpoints for operations that require secrets.
  */
 
 // Client-safe env (Vite)
@@ -22,13 +23,9 @@ export const isAdmin = (email?: string) => {
   return adminEmails.includes(email.toLowerCase());
 };
 
-/**
- * Backwards-compatible stubs / wrappers
- *
- * These keep the same API surface that components import, but:
- * - They do NOT contain secrets.
- * - They call server endpoints (you must implement) for sensitive ops.
- */
+// -----------------------------
+// Compatibility stubs / wrappers
+// -----------------------------
 
 // Deprecated on-client getter: return null and warn. Components should not rely on client-stored admin password.
 export const getAdminPassword = (): string | null => {
@@ -36,61 +33,129 @@ export const getAdminPassword = (): string | null => {
   return null;
 };
 
-// createMidtransToken(payload) -> asks your server to create a Midtrans snap token.
-// Server must hold Midtrans server key and implement the endpoint.
-export async function createMidtransToken(payload: { amount: number; orderId?: string }) {
+// Helper to call API endpoints (relative or absolute if VITE_API_BASE_URL set)
+const apiFetch = async (path: string, opts: RequestInit = {}) => {
   const apiBase = (import.meta.env.VITE_API_BASE_URL as string) || '';
-  const url = apiBase ? `${apiBase}/api/midtrans/create-token` : `/api/midtrans/create-token`;
-  const res = await fetch(url, {
+  const url = apiBase ? `${apiBase}${path}` : path;
+  const res = await fetch(url, opts);
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(`${path} failed: ${res.status} ${text}`);
+  }
+  return res.json().catch(() => ({}));
+};
+
+// createMidtransToken -> ask server to create snap token (server holds Midtrans key)
+export async function createMidtransToken(payload: { email?: string; credits?: number; amount?: number; orderId?: string }) {
+  return apiFetch('/api/midtrans/create-token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   });
-  if (!res.ok) {
-    const text = await res.text().catch(() => '');
-    throw new Error(`createMidtransToken failed: ${res.status} ${text}`);
-  }
-  return res.json();
 }
 
-// processMidtransTopup -> send topup data to server to validate & finalize (server uses secret keys)
-export async function processMidtransTopup(payload: { transactionId: string; status?: string }) {
-  const apiBase = (import.meta.env.VITE_API_BASE_URL as string) || '';
-  const url = apiBase ? `${apiBase}/api/midtrans/process-topup` : `/api/midtrans/process-topup`;
-  const res = await fetch(url, {
+// processMidtransTopup -> ask server to validate and finalize topup
+export async function processMidtransTopup(payload: { transactionId: string; orderId?: string; status?: string }) {
+  return apiFetch('/api/midtrans/process-topup', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   });
-  if (!res.ok) {
-    const text = await res.text().catch(() => '');
-    throw new Error(`processMidtransTopup failed: ${res.status} ${text}`);
-  }
-  return res.json();
 }
 
-// logActivity: fire-and-forget client logging to server; fallback to console if server unavailable
-export function logActivity(event: { type: string; message?: string; meta?: any }) {
-  const apiBase = (import.meta.env.VITE_API_BASE_URL as string) || '';
-  const url = apiBase ? `${apiBase}/api/logs` : `/api/logs`;
-
-  fetch(url, {
+// logActivity: fire-and-forget client logging to server; fallback to console
+export function logActivity(event: { type: string; message?: string; meta?: any } | string) {
+  const body = typeof event === 'string' ? { type: 'info', message: event } : event;
+  // Fire-and-forget
+  fetch('/api/logs', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(event),
+    body: JSON.stringify(body),
   }).catch(() => {
-    console.debug('[logActivity fallback]', event);
+    console.debug('[logActivity fallback]', body);
   });
 }
 
-// rotation & audit helpers (client-side placeholders)
+// isUserOnline -> ask server or use supabase presence if implemented. Default: false
+export async function isUserOnline(email: string) {
+  try {
+    const res = await apiFetch(`/api/users/online?email=${encodeURIComponent(email)}`);
+    return !!res?.online;
+  } catch (e) {
+    return false;
+  }
+}
+
+// sendTelegramNotification -> ask server to send telegram message (server holds bot token)
+export async function sendTelegramNotification(payload: { chatId?: string; message: string }) {
+  return apiFetch('/api/telegram/send', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+}
+
+// deductCredits -> ask server to deduct credits from user; server must perform secure DB updates
+export async function deductCredits(email: string, amount: number) {
+  try {
+    const res = await apiFetch('/api/credits/deduct', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, amount }),
+    });
+    return !!res?.success;
+  } catch (e) {
+    return false;
+  }
+}
+
+// getSystemSettings -> fetch system settings (costs, defaults)
+export async function getSystemSettings() {
+  try {
+    const res = await apiFetch('/api/system/settings');
+    return res || {};
+  } catch (e) {
+    // sensible defaults
+    return { cost_image: 25, cost_video: 150 };
+  }
+}
+
+// Topup admin helpers
+export async function getPendingTopups() {
+  try {
+    const res = await apiFetch('/api/topups/pending');
+    return res?.data || [];
+  } catch (e) {
+    return [];
+  }
+}
+
+export async function approveTopup(id: number) {
+  try {
+    const res = await apiFetch('/api/topups/approve', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id }),
+    });
+    return !!res?.success;
+  } catch (e) {
+    return false;
+  }
+}
+
+// Example placeholder used elsewhere
 export const rotateApiKey = () => {
   console.warn('[lib/api] rotateApiKey() placeholder. Implement rotation on server-side.');
 };
 
 export const auditApiKeys = () => {
+  // Return a shape used by SystemLogs; fill with best-effort checks
   return {
     db: !!supabase,
+    ai: false, // client can't check AI service availability reliably
+    telegram: false,
     adminEmails: adminEmails.length,
   };
 };
+
+export default {};
