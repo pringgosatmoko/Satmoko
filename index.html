@@ -16,15 +16,6 @@
     <!-- Midtrans Snap JS Sandbox -->
     <script type="text/javascript" src="https://app.sandbox.midtrans.com/snap/snap.js"></script>
     
-    <!-- Critical Polyfill for process.env before any modules load -->
-    <script>
-      window.process = window.process || { env: {} };
-      if (!window.process.env) window.process.env = {};
-      // Fallback for Vite environments
-      window.VITE_DATABASE_URL = ""; 
-      window.VITE_SUPABASE_ANON = "";
-    </script>
-
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@300;400;500;600;700&display=swap');
         
@@ -84,7 +75,6 @@
   }
 }
 </script>
-<link rel="stylesheet" href="/index.css">
 </head>
 <body>
     <div id="root"></div>
