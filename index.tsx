@@ -14,21 +14,8 @@ declare global {
   interface Window {
     snap: any;
     aistudio?: AIStudio;
-    process: {
-      env: Record<string, string>;
-    };
-  }
-
-  interface ImportMeta {
-    readonly env: any;
   }
 }
-
-// Sinkronisasi data lingkungan tambahan jika tersedia di import.meta
-try {
-  const metaEnv = (import.meta as any).env || {};
-  Object.assign(window.process.env, metaEnv);
-} catch (e) {}
 
 const rootElement = document.getElementById('root');
 if (rootElement) {
