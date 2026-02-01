@@ -7,6 +7,7 @@ import { isAdmin as checkAdmin, supabase } from './lib/api.ts';
 // UI Elements
 import { LandingHero } from './components/LandingHero.tsx';
 import { SloganAnimation } from './components/SloganAnimation.tsx';
+import { StartAnimation } from './components/StartAnimation.tsx';
 
 // Views
 import { HomeView } from './views/HomeView.tsx';
@@ -33,6 +34,7 @@ const App: React.FC = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isPendingPayment, setIsPendingPayment] = useState(false);
   const [isCheckingSession, setIsCheckingSession] = useState(true);
+  const [showIntro, setShowIntro] = useState(true);
   const [showInfo, setShowInfo] = useState(false);
   const [activeTab, setActiveTab] = useState<Tab>('home');
   const [userEmail, setUserEmail] = useState('');
@@ -143,6 +145,10 @@ const App: React.FC = () => {
 
   const isAdmin = useMemo(() => checkAdmin(userEmail), [userEmail]);
 
+  if (showIntro) {
+    return <StartAnimation onComplete={() => setShowIntro(false)} />;
+  }
+
   if (isCheckingSession) {
     return (
       <div className="min-h-screen bg-[#010409] flex items-center justify-center">
@@ -233,18 +239,21 @@ const App: React.FC = () => {
                 >
                   SYSTEM INFO & CONTACT MASTER
                 </button>
-              </motion.div>
+              </div>
             </div>
             {showInfo && <InfoOverlay onClose={() => setShowInfo(false)} lang="id" />}
           </motion.div>
         ) : (
+          /* Fix: Cleaned up motion.div to ensure proper JSX parsing and avoid "Cannot find name 'div'" */
           <motion.div 
             key="main-app"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             className="flex flex-col h-screen relative overflow-hidden bg-[#010409]"
           >
-            <main className="flex-1 overflow-y-auto no-scrollbar pb-28">{renderView()}</main>
+            <main className="flex-1 overflow-y-auto no-scrollbar pb-28">
+              {renderView()}
+            </main>
             <nav className="fixed bottom-0 left-0 right-0 px-8 py-5 flex items-center justify-between z-[100] pb-10 border-t border-white/5 bg-[#010409]/95 backdrop-blur-xl">
               <NavButton active={activeTab === 'home' && !subView} icon="fa-house" onClick={() => {setActiveTab('home'); setSubView(null);}} />
               <NavButton active={activeTab === 'play'} icon="fa-play" onClick={() => {setActiveTab('play'); setSubView(null);}} />
@@ -268,4 +277,3 @@ const NavButton = ({ active, icon, onClick }: { active: boolean, icon: string, o
   </button>
 );
 
-export default App;
