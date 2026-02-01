@@ -197,8 +197,6 @@ const App: React.FC = () => {
             className="flex-1 flex flex-col items-center p-6 pt-10 relative min-h-screen overflow-y-auto no-scrollbar scroll-smooth"
           >
             <div className="w-full max-w-md flex flex-col items-center">
-              
-              {/* Logo Master Section */}
               <div className="flex flex-col items-center mb-8">
                 <LandingHero />
                 <div className="mt-[-30px]">
@@ -206,7 +204,6 @@ const App: React.FC = () => {
                 </div>
               </div>
 
-              {/* Login/Registration Section */}
               <motion.div 
                 initial={{ y: 20, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
@@ -239,12 +236,11 @@ const App: React.FC = () => {
                 >
                   SYSTEM INFO & CONTACT MASTER
                 </button>
-              </div>
+              </motion.div>
             </div>
             {showInfo && <InfoOverlay onClose={() => setShowInfo(false)} lang="id" />}
           </motion.div>
         ) : (
-          /* Fix: Cleaned up motion.div to ensure proper JSX parsing and avoid "Cannot find name 'div'" */
           <motion.div 
             key="main-app"
             initial={{ opacity: 0 }}
@@ -277,3 +273,4 @@ const NavButton = ({ active, icon, onClick }: { active: boolean, icon: string, o
   </button>
 );
 
+export default App;
