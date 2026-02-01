@@ -43,7 +43,6 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, lang, initialEm
     try {
       const isFree = pkg.price === 0;
       
-      // 1. Inisialisasi Database Member (Pending)
       const { error: dbError } = await supabase.from('members').upsert([{ 
         email: emailLower, 
         status: isFree ? 'active' : 'pending', 
@@ -61,7 +60,6 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, lang, initialEm
 
       if (dbError) throw dbError;
 
-      // 2. Auth SignUp
       const { error: authError } = await supabase.auth.signUp({
         email: emailLower,
         password: password,
@@ -73,17 +71,14 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, lang, initialEm
 
       logActivity('REGISTRATION_START', `User ${emailLower} initiated ${pkg.id}`);
 
-      // 3. Free Trial Path
       if (isFree) {
         onSuccess(emailLower);
         return;
       }
 
-      // 4. Paid Path - Midtrans Snap Gate
       const res = await createMidtransToken(emailLower, pkg.credits, pkg.price, orderId);
       
       if (res && res.token && (window as any).snap) {
-        // Save snap token for recovery
         await supabase.from('members').update({
            metadata: { 
              ...pkg,
