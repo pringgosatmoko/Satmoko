@@ -1,15 +1,12 @@
 
 import { createClient } from '@supabase/supabase-js';
 
-// Deteksi kredensial secara stabil
-const getEnv = (key: string) => {
-  return process.env[key] || (import.meta as any).env?.[key] || '';
-};
+// Access environment variables directly. 
+// Vite's 'define' will replace these with string literals during build.
+const supabaseUrl = process.env.VITE_DATABASE_URL || '';
+const supabaseKey = process.env.VITE_SUPABASE_ANON || '';
 
-const supabaseUrl = getEnv('VITE_DATABASE_URL');
-const supabaseKey = getEnv('VITE_SUPABASE_ANON');
-
-// Inisialisasi Supabase Client
+// Initialize Supabase Client
 export const supabase = (supabaseUrl && supabaseKey) 
   ? createClient(supabaseUrl, supabaseKey) 
   : null;
@@ -23,7 +20,7 @@ export const isAdmin = (email: string) => {
 // Password Admin Master
 export const getAdminPassword = () => 'MASTER2025';
 
-// No-op for API key rotation as we now use process.env.API_KEY exclusively
+// No-op for API key rotation
 export const rotateApiKey = () => {
   console.log("[System] API key management is now handled exclusively via process.env.API_KEY.");
 };
@@ -33,14 +30,14 @@ export const auditApiKeys = () => {
   return {
     db: !!supabase,
     ai: !!process.env.API_KEY,
-    telegram: !!getEnv('VITE_TELEGRAM_BOT_TOKEN')
+    telegram: !!process.env.VITE_TELEGRAM_BOT_TOKEN
   };
 };
 
 // Send notifications via Telegram bot
 export const sendTelegramNotification = async (text: string) => {
-  const botToken = getEnv('VITE_TELEGRAM_BOT_TOKEN');
-  const chatId = getEnv('VITE_TELEGRAM_CHAT_ID');
+  const botToken = process.env.VITE_TELEGRAM_BOT_TOKEN;
+  const chatId = process.env.VITE_TELEGRAM_CHAT_ID;
   
   if (!botToken || !chatId) return;
 
