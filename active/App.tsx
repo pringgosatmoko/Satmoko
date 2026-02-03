@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { LoginForm } from './components/LoginForm';
 import { Dashboard } from './components/Dashboard';
@@ -9,15 +10,21 @@ const App: React.FC = () => {
   const [checkingSession, setCheckingSession] = useState(true);
 
   const verifyUserStatus = async (email: string) => {
+    if (!email) return false;
     if (isAdmin(email)) return true;
     
-    const { data: member } = await supabase
-      .from('members')
-      .select('status')
-      .eq('email', email.toLowerCase())
-      .maybeSingle();
+    try {
+      const { data: member, error } = await supabase
+        .from('members')
+        .select('status')
+        .eq('email', email.toLowerCase())
+        .maybeSingle();
       
-    return member?.status === 'active';
+      if (error || !member) return false;
+      return member.status === 'active';
+    } catch (e) {
+      return false;
+    }
   };
 
   useEffect(() => {
@@ -29,8 +36,8 @@ const App: React.FC = () => {
           setUserEmail(session.user.email);
           setIsLoggedIn(true);
         } else {
-          // Jika tidak aktif, paksa logout untuk membersihkan sesi yang menggantung
           await supabase.auth.signOut();
+          setIsLoggedIn(false);
         }
       }
       setCheckingSession(false);
@@ -45,6 +52,9 @@ const App: React.FC = () => {
           setUserEmail(session.user.email);
           setIsLoggedIn(true);
         } else {
+          if (_event === 'SIGNED_IN' || _event === 'INITIAL_SESSION') {
+             await supabase.auth.signOut();
+          }
           setIsLoggedIn(false);
           setUserEmail('');
         }
@@ -64,7 +74,7 @@ const App: React.FC = () => {
 
   if (checkingSession) return (
     <div className="min-h-screen bg-slate-950 flex items-center justify-center">
-       <div className="w-10 h-10 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin"></div>
+       <div className="text-[10px] font-black text-cyan-500 uppercase tracking-[0.4em]">Initializing Hub...</div>
     </div>
   );
 
