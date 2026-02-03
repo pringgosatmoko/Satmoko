@@ -1,43 +1,37 @@
+// SATMOKO SNAP TOKEN GENERATOR V10.2 - ULTIMATE STABLE
+// Fix: Menggunakan Buffer (Node.js) untuk encoding Auth Header agar lolos verifikasi Midtrans
 
-// SATMOKO SNAP TOKEN GENERATOR V9.9.1 - STABLE
-// Pastikan VITE_MIDTRANS_SERVER_KEY sudah terpasang di Dashboard Hosting (Vercel)
+// Explicitly import Buffer from 'buffer' to fix "Cannot find name 'Buffer'" in TypeScript/Node environments.
+import { Buffer } from 'buffer';
 
 export default async function handler(req: any, res: any) {
+  // Hanya izinkan request POST
   if (req.method !== 'POST') return res.status(405).json({ message: 'Method Not Allowed' });
 
-  const { orderId, amount, email, fullName } = req.body;
-  
-  // Ambil Server Key dari Env & Bersihkan Spasi
-  let serverKey = (process.env.VITE_MIDTRANS_SERVER_KEY || process.env.VITE_MIDTRANS_SERVER_ID || "").trim();
-  
-  if (!serverKey) {
-    return res.status(500).json({ 
-      error: "KONFIGURASI_ERROR: Server Key Master kosong. Pastikan VITE_MIDTRANS_SERVER_KEY sudah diisi di Vercel." 
-    });
-  }
-
-  // Gunakan btoa untuk Basic Auth (server_key:)
-  const authString = btoa(`${serverKey}:`);
-
-  const payload = {
-    transaction_details: {
-      order_id: orderId,
-      gross_amount: amount,
-    },
-    customer_details: {
-      first_name: fullName,
-      email: email,
-    },
-    usage_limit: 1,
-    enabled_payments: ["credit_card", "gopay", "shopeepay", "permata_va", "bca_va", "bni_va", "bri_va", "other_va"]
-  };
-
   try {
-    const isProduction = !serverKey.startsWith('SB-');
-    const baseUrl = isProduction 
-      ? 'https://app.midtrans.com/snap/v1/transactions' 
-      : 'https://app.sandbox.midtrans.com/snap/v1/transactions';
+    const { orderId, amount, email, fullName } = req.body;
+    
+    // 1. Ambil Server Key dari Env Vercel
+    // Master: Pastikan VITE_MIDTRANS_SERVER_KEY sudah diisi di Vercel Dashboard!
+    const serverKey = (process.env.VITE_MIDTRANS_SERVER_KEY || "").trim();
+    
+    if (!serverKey) {
+      return res.status(500).json({ 
+        error: "KONFIGURASI_ERROR: Server Key (VITE_MIDTRANS_SERVER_KEY) tidak ditemukan di Environment Variable Vercel." 
+      });
+    }
 
+    // 2. Encoding Basic Auth menggunakan Buffer (Standar Node.js yang paling kompatibel dengan Midtrans)
+    // Format wajib: base64(server_key + ":")
+    const authString = Buffer.from(`${serverKey}:`).toString('base64');
+
+    // 3. Deteksi Environment (Case-Insensitive)
+    const isSandbox = serverKey.toUpperCase().startsWith('SB-');
+    const baseUrl = isSandbox 
+      ? 'https://app.sandbox.midtrans.com/snap/v1/transactions'
+      : 'https://app.midtrans.com/snap/v1/transactions';
+
+    // 4. Kirim Request ke API Midtrans
     const response = await fetch(baseUrl, {
       method: 'POST',
       headers: {
@@ -45,15 +39,27 @@ export default async function handler(req: any, res: any) {
         'Content-Type': 'application/json',
         'Authorization': `Basic ${authString}`
       },
-      body: JSON.stringify(payload)
+      body: JSON.stringify({
+        transaction_details: {
+          order_id: orderId,
+          gross_amount: amount,
+        },
+        customer_details: {
+          first_name: fullName,
+          email: email,
+        },
+        usage_limit: 1,
+        enabled_payments: ["credit_card", "gopay", "shopeepay", "permata_va", "bca_va", "bni_va", "bri_va", "other_va"]
+      })
     });
 
     const data = await response.json();
 
     if (!response.ok) {
+      // Jika error 401 (Unauthorized)
       if (response.status === 401) {
         return res.status(401).json({ 
-          error: `MIDTRANS_AUTH_ERROR (401): Akses Ditolak.\n\nMaster, pastikan:\n1. Server Key di Vercel BENAR (Bukan Client Key).\n2. Lingkungan sesuai (Sandbox pakai key SB-, Prod pakai key asli).\n3. Tidak ada spasi di awal/akhir Key.`
+          error: `AUTH_FAILED (401): Akses Ditolak.\n\nMaster, mohon verifikasi:\n1. Di Vercel, pastikan VITE_MIDTRANS_SERVER_KEY adalah SERVER KEY (Bukan Client Key).\n2. Cek apakah Master menggunakan Key Sandbox (SB-) tapi mencoba akses Production, atau sebaliknya.\n3. Salin ulang Server Key dari Dashboard Midtrans Settings > Access Keys.`
         });
       }
       return res.status(response.status).json({ 
@@ -61,8 +67,10 @@ export default async function handler(req: any, res: any) {
       });
     }
 
+    // Berhasil mendapatkan Token Snap
     return res.status(200).json(data);
+
   } catch (error: any) {
-    return res.status(500).json({ error: "SISTEM_OFFLINE: " + error.message });
+    return res.status(500).json({ error: "SISTEM_FAILURE: " + error.message });
   }
 }

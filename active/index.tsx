@@ -1,5 +1,5 @@
 
-// Robust Environment Variable Polyfill for Satmoko Studio V9.8
+// Robust Environment Variable Polyfill for Satmoko Studio V10.0
 if (typeof window !== 'undefined') {
   const win = window as any;
   win.process = win.process || { env: {} };
@@ -19,13 +19,19 @@ if (typeof window !== 'undefined') {
   syncVar('VITE_ADMIN_EMAILS');
   syncVar('VITE_PASSW');
   
-  // Midtrans Client Key (Sync dengan toleransi _ID atau _KEY)
+  // Midtrans Client Key
   const clientKey = syncVar('VITE_MIDTRANS_CLIENT_KEY') || syncVar('VITE_MIDTRANS_CLIENT_ID') || 'SB-Mid-client-PLACEHOLDER';
   
-  // Injeksi Client Key ke Script Tag
-  const midtransScript = document.getElementById('midtrans-script');
+  // DYNAMIC SCRIPT INJECTION (FIX: Agar otomatis ganti Sandbox/Production)
+  const isSandbox = clientKey.toUpperCase().startsWith('SB-');
+  const snapUrl = isSandbox 
+    ? 'https://app.sandbox.midtrans.com/snap/snap.js' 
+    : 'https://app.midtrans.com/snap/snap.js';
+
+  const midtransScript = document.getElementById('midtrans-script') as HTMLScriptElement;
   if (midtransScript) {
     midtransScript.setAttribute('data-client-key', clientKey);
+    midtransScript.src = snapUrl; // Otomatis mengarahkan ke SDK yang benar
   }
 
   // Telegram Integration
