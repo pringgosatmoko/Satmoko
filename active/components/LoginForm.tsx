@@ -19,187 +19,174 @@ export const LoginForm: React.FC<{ onLoginSuccess: (email: string) => void }> = 
     e.preventDefault();
     setLoading(true);
     setError('');
-    setInfo('');
-
     try {
       if (isAdmin(email) && password === getAdminPassword()) {
         onLoginSuccess(email);
         return;
       }
-
-      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({ 
+      const { error: authError } = await supabase.auth.signInWithPassword({ 
         email: email.toLowerCase(), 
         password 
       });
-      
       if (authError) throw authError;
 
-      const { data: member, error: memberError } = await supabase
+      const { data: member } = await supabase
         .from('members')
         .select('status')
         .eq('email', email.toLowerCase())
         .maybeSingle();
 
-      if (memberError || !member || member.status !== 'active') {
+      if (!member || member.status !== 'active') {
         await supabase.auth.signOut();
-        throw new Error('Akses ditolak. Selesaikan pembayaran atau tunggu verifikasi admin.');
+        throw new Error('Akses ditolak. Selesaikan pembayaran atau tunggu aktivasi.');
       }
-
       onLoginSuccess(email);
     } catch (err: any) {
-      setError(err.message || 'Gagal masuk. Periksa email/password.');
+      setError(err.message || 'Gagal login.');
       setLoading(false);
     }
   };
 
   const startPaymentFlow = async () => {
     if (!selectedPlan || !email || !password || !fullName) {
-      setError('Lengkapi semua data sebelum melanjutkan.');
+      setError('Lengkapi semua data registrasi.');
       return;
     }
-    
     setLoading(true);
     setError('');
-    const orderId = `REG-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-
+    const orderId = `REG-${Date.now()}`;
+    
     try {
-      const response = await fetch('/api/midtrans/token', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          orderId,
-          amount: selectedPlan.price,
-          email: email.toLowerCase(),
-          fullName
-        })
-      });
-
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || 'Gagal menghubungi gateway pembayaran.');
-
-      snap.pay(data.token, {
-        onSuccess: async () => await completeRegistration(orderId, 'active', selectedPlan.credits),
-        onPending: async () => await completeRegistration(orderId, 'pending', 0),
-        onError: () => { setError('Pembayaran gagal.'); setLoading(false); },
-        onClose: () => { setError('Selesaikan pembayaran untuk mengaktifkan akun.'); setLoading(false); }
-      });
-    } catch (err: any) {
-      setError(err.message);
-      setLoading(false);
-    }
-  };
-
-  const completeRegistration = async (orderId: string, status: 'active' | 'pending', initialCredits: number) => {
-    try {
-      const { error: authError } = await supabase.auth.signUp({
+      // 1. Buat akun Auth & Member (status pending) terlebih dahulu
+      const { error: signUpError } = await supabase.auth.signUp({
         email: email.toLowerCase(),
         password,
         options: { data: { full_name: fullName } }
       });
+      if (signUpError) throw signUpError;
 
-      if (authError) throw authError;
-
-      const { error: dbError } = await supabase.from('members').insert([{
+      await supabase.from('members').insert([{
         email: email.toLowerCase(),
         full_name: fullName,
-        status: status,
-        credits: initialCredits,
-        metadata: { order_id: orderId, plan: selectedPlan.label, price: selectedPlan.price }
+        status: 'pending',
+        credits: 0,
+        metadata: { 
+          order_id: orderId, 
+          plan: selectedPlan.label, 
+          credits_to_add: selectedPlan.credits,
+          days_to_add: selectedPlan.days 
+        }
       }]);
 
-      if (dbError) throw dbError;
-      sendTelegramNotification(`👤 REGISTRASI BARU\nEmail: ${email}\nPlan: ${selectedPlan.label}\nStatus: ${status}`);
-      setInfo(status === 'active' ? 'Pembayaran sukses! Silakan login.' : 'Pesanan diterima! Menunggu verifikasi.');
-      setMode('login');
+      // 2. Ambil Snap Token dari Backend
+      const response = await fetch('/api/midtrans/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          orderId, 
+          amount: selectedPlan.price, 
+          email: email.toLowerCase(), 
+          fullName 
+        })
+      });
+      
+      const data = await response.json();
+      if (data.error) throw new Error(data.error);
+
+      // 3. Jalankan Midtrans Snap
+      snap.pay(data.token, {
+        onSuccess: () => {
+          sendTelegramNotification(`💰 PEMBAYARAN BERHASIL: ${email} (${selectedPlan.label})`);
+          setInfo('Pembayaran sukses! Akun akan aktif dalam beberapa saat.');
+          setMode('login');
+          setLoading(false);
+        },
+        onPending: () => {
+          setInfo('Menunggu pembayaran. Silakan selesaikan transaksi Anda.');
+          setMode('login');
+          setLoading(false);
+        },
+        onError: () => {
+          setError('Terjadi kesalahan saat memproses pembayaran.');
+          setLoading(false);
+        },
+        onClose: () => {
+          setInfo('Transaksi dibatalkan. Anda bisa melanjutkan pembayaran nanti.');
+          setMode('login');
+          setLoading(false);
+        }
+      });
     } catch (err: any) {
-      setError('Data tersimpan namun ada kendala sinkronisasi.');
-    } finally {
+      setError(err.message || 'Gagal memulai registrasi.');
       setLoading(false);
     }
   };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen p-4 bg-slate-950">
-      
-      {/* Logo Statis di Atas */}
-      <div className="mb-4">
+    <div className="flex flex-col items-center justify-center min-h-screen bg-slate-950 p-6">
+      <div className="w-full max-w-sm">
         <LandingHero />
-      </div>
-
-      {/* Container Form Statis */}
-      <div className="w-full max-w-md p-10 glass rounded-[2.5rem] border border-white/5 space-y-8 shadow-2xl relative z-10">
-        <div className="text-center space-y-2">
-          <h1 className="text-4xl font-black tracking-tighter text-white uppercase italic">
-            SATMOKO <span className="text-cyan-400">STUDIO</span>
-          </h1>
-          <p className="text-[10px] font-black text-slate-600 uppercase tracking-[0.4em]">Secure Creative Command Hub</p>
-        </div>
-
-        {error && (
-          <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-2xl text-[10px] font-bold text-red-500 text-center uppercase tracking-widest">
-            {error}
-          </div>
-        )}
-        {info && (
-          <div className="p-4 bg-green-500/10 border border-green-500/20 rounded-2xl text-[10px] font-bold text-green-500 text-center uppercase tracking-widest">
-            {info}
-          </div>
-        )}
-
-        <div className="space-y-6">
-          {mode === 'login' && (
-            <form onSubmit={handleLogin} className="space-y-4">
-              <input type="email" placeholder="Email Address" className="w-full bg-black/40 border border-white/10 rounded-2xl p-4 text-sm text-white focus:border-cyan-500/50 outline-none transition-all" value={email} onChange={e => setEmail(e.target.value)} required />
-              <input type="password" placeholder="Password" className="w-full bg-black/40 border border-white/10 rounded-2xl p-4 text-sm text-white focus:border-cyan-500/50 outline-none transition-all" value={password} onChange={e => setPassword(e.target.value)} required />
-              <button disabled={loading} className="w-full py-4 bg-cyan-500 hover:bg-cyan-400 text-black font-black uppercase rounded-2xl transition-all shadow-xl active:scale-95 disabled:opacity-50">
-                {loading ? 'AUTHORIZING...' : 'LOGIN TO HUB'}
-              </button>
-              <button type="button" onClick={() => setMode('register')} className="w-full text-[10px] font-black text-slate-600 hover:text-cyan-400 uppercase tracking-widest transition-colors">
-                Create New Workspace
-              </button>
-            </form>
-          )}
-
-          {mode === 'register' && (
-            <div className="space-y-4">
-              <input type="text" placeholder="Full Name" className="w-full bg-black/40 border border-white/10 rounded-2xl p-4 text-sm text-white focus:border-cyan-500/50 outline-none transition-all" value={fullName} onChange={e => setFullName(e.target.value)} required />
-              <input type="email" placeholder="Email Address" className="w-full bg-black/40 border border-white/10 rounded-2xl p-4 text-sm text-white focus:border-cyan-500/50 outline-none transition-all" value={email} onChange={e => setEmail(e.target.value)} required />
-              <input type="password" placeholder="Create Password" className="w-full bg-black/40 border border-white/10 rounded-2xl p-4 text-sm text-white focus:border-cyan-500/50 outline-none transition-all" value={password} onChange={e => setPassword(e.target.value)} required />
-              <button onClick={() => setMode('plan')} className="w-full py-4 bg-white text-black font-black uppercase rounded-2xl hover:bg-cyan-400 transition-all shadow-xl active:scale-95">
-                CONTINUE TO PLANS
-              </button>
-              <button type="button" onClick={() => setMode('login')} className="w-full text-[10px] font-black text-slate-600 hover:text-cyan-400 uppercase tracking-widest transition-colors">
-                Back to Login
-              </button>
-            </div>
-          )}
-
-          {mode === 'plan' && (
-            <div className="space-y-4">
-              <p className="text-[10px] font-black text-cyan-400 uppercase text-center tracking-widest">Select Your Production Tier</p>
-              <div className="space-y-2">
-                {PLANS.map(plan => (
-                  <button key={plan.id} onClick={() => setSelectedPlan(plan)} className={`w-full p-4 rounded-2xl border flex justify-between items-center transition-all ${selectedPlan?.id === plan.id ? 'bg-cyan-500/10 border-cyan-500 text-cyan-400' : 'bg-black/40 border-white/5 text-slate-500'}`}>
-                    <div className="text-left">
-                      <p className="text-xs font-black uppercase tracking-tight">{plan.label}</p>
-                      <p className="text-[9px] uppercase font-bold">{plan.credits} Credits • {plan.days} Days</p>
-                    </div>
-                    <p className="text-xs font-black italic">Rp {plan.price.toLocaleString()}</p>
-                  </button>
-                ))}
-              </div>
-              <button onClick={startPaymentFlow} disabled={loading || !selectedPlan} className="w-full py-5 bg-cyan-500 text-black font-black uppercase rounded-2xl hover:bg-cyan-400 transition-all shadow-2xl active:scale-95 disabled:opacity-20">
-                {loading ? 'PREPARING GATEWAY...' : 'PAY & ACTIVATE'}
-              </button>
-              <button type="button" onClick={() => setMode('register')} className="w-full text-[10px] font-black text-slate-600 hover:text-cyan-400 uppercase tracking-widest text-center">
-                Back to Details
-              </button>
-            </div>
-          )}
-        </div>
         
-        <div className="pt-4 opacity-10 flex flex-col items-center">
-          <p className="text-[8px] font-black text-slate-500 uppercase tracking-[0.6em]">ORA NGAPAK ORA KEPENAK</p>
+        <div className="glass border border-white/5 p-8 rounded-[2rem] space-y-6 bg-slate-900/40 mt-4 shadow-2xl">
+          <div className="text-center">
+            <h2 className="text-[10px] font-black text-cyan-500 uppercase tracking-[0.4em]">
+              {mode === 'login' ? 'Authentication' : mode === 'register' ? 'Registration' : 'Select Plan'}
+            </h2>
+          </div>
+
+          {error && <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-[10px] font-bold text-red-500 text-center uppercase">{error}</div>}
+          {info && <div className="p-3 bg-green-500/10 border border-green-500/20 rounded-xl text-[10px] font-bold text-green-500 text-center uppercase">{info}</div>}
+
+          <div className="space-y-4">
+            {mode === 'login' && (
+              <form onSubmit={handleLogin} className="space-y-4">
+                <input type="email" placeholder="EMAIL" className="w-full bg-black/40 border border-white/10 rounded-xl p-4 text-[11px] text-white outline-none focus:border-cyan-500/40" value={email} onChange={e => setEmail(e.target.value)} required />
+                <input type="password" placeholder="PASSWORD" className="w-full bg-black/40 border border-white/10 rounded-xl p-4 text-[11px] text-white outline-none focus:border-cyan-500/40" value={password} onChange={e => setPassword(e.target.value)} required />
+                <button disabled={loading} className="w-full py-4 bg-cyan-500 text-black font-black text-[10px] uppercase rounded-xl hover:bg-white transition-colors">
+                  {loading ? 'PROCESSING...' : 'SIGN IN'}
+                </button>
+                <div className="flex justify-between items-center px-1">
+                  <button type="button" onClick={() => setMode('register')} className="text-[9px] font-black text-slate-600 hover:text-cyan-400 uppercase tracking-widest">Create Account</button>
+                </div>
+              </form>
+            )}
+
+            {mode === 'register' && (
+              <div className="space-y-4">
+                <input type="text" placeholder="FULL NAME" className="w-full bg-black/40 border border-white/10 rounded-xl p-4 text-[11px] text-white outline-none" value={fullName} onChange={e => setFullName(e.target.value)} />
+                <input type="email" placeholder="EMAIL ADDRESS" className="w-full bg-black/40 border border-white/10 rounded-xl p-4 text-[11px] text-white outline-none" value={email} onChange={e => setEmail(e.target.value)} />
+                <input type="password" placeholder="PASSWORD" className="w-full bg-black/40 border border-white/10 rounded-xl p-4 text-[11px] text-white outline-none" value={password} onChange={e => setPassword(e.target.value)} />
+                <button onClick={() => setMode('plan')} className="w-full py-4 bg-white text-black font-black text-[10px] uppercase rounded-xl">
+                  NEXT: SELECT PLAN
+                </button>
+                <button onClick={() => setMode('login')} className="w-full text-[9px] font-black text-slate-600 uppercase tracking-widest text-center block">Back to Login</button>
+              </div>
+            )}
+
+            {mode === 'plan' && (
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  {PLANS.map(plan => (
+                    <button key={plan.id} onClick={() => setSelectedPlan(plan)} className={`w-full p-4 rounded-xl border flex justify-between items-center transition-all ${selectedPlan?.id === plan.id ? 'bg-cyan-500/10 border-cyan-500 text-cyan-400' : 'bg-black/40 border-white/5 text-slate-500'}`}>
+                      <div className="text-left">
+                        <p className="text-[10px] font-black uppercase">{plan.label}</p>
+                        <p className="text-[8px] uppercase">{plan.credits} Credits</p>
+                      </div>
+                      <p className="text-[10px] font-black italic">Rp {plan.price.toLocaleString()}</p>
+                    </button>
+                  ))}
+                </div>
+                <button onClick={startPaymentFlow} disabled={loading || !selectedPlan} className="w-full py-5 bg-cyan-500 text-black font-black uppercase text-[10px] rounded-xl shadow-2xl disabled:opacity-20">
+                  {loading ? 'INITIATING...' : 'PAY & REGISTER'}
+                </button>
+                <button onClick={() => setMode('register')} className="w-full text-[9px] font-black text-slate-600 uppercase text-center block">Back</button>
+              </div>
+            )}
+          </div>
+          
+          <div className="pt-4 opacity-10 flex flex-col items-center">
+            <p className="text-[8px] font-black text-slate-500 uppercase tracking-[0.5em]">ORA NGAPAK ORA KEPENAK</p>
+          </div>
         </div>
       </div>
     </div>
