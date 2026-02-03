@@ -8,6 +8,8 @@ export default async function handler(req: any, res: any) {
 
   try {
     const { orderId, amount, email, fullName } = req.body;
+    
+    // Prioritaskan VITE_MIDTRANS_SERVER_ID sesuai screenshot Vercel Master
     const rawServerId = process.env.VITE_MIDTRANS_SERVER_ID || process.env.MIDTRANS_SERVER_ID;
     const serverId = rawServerId?.trim();
     
@@ -15,7 +17,10 @@ export default async function handler(req: any, res: any) {
       return res.status(500).json({ error: "MIDTRANS_SERVER_ID_MISSING" });
     }
 
+    // Auth Header: Basic [base64(server_id:)]
     const authHeader = `Basic ${Buffer.from(`${serverId}:`).toString('base64')}`;
+    
+    // Tentukan URL berdasarkan prefix key
     const isSandbox = serverId.toUpperCase().startsWith('SB-');
     const baseUrl = isSandbox 
       ? 'https://app.sandbox.midtrans.com/snap/v1/transactions'
@@ -43,8 +48,11 @@ export default async function handler(req: any, res: any) {
     });
 
     const data = await response.json();
+    
     if (!response.ok) {
-      return res.status(response.status).json({ error: data.error_messages?.[0] || "Payment Gateway Error" });
+      return res.status(response.status).json({ 
+        error: data.error_messages?.[0] || "PAYMENT_GATEWAY_AUTH_ERROR" 
+      });
     }
 
     return res.status(200).json(data);

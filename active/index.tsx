@@ -1,3 +1,4 @@
+
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
@@ -17,17 +18,24 @@ if (typeof window !== 'undefined') {
     VITE_ADMIN_EMAILS: metaEnv.VITE_ADMIN_EMAILS,
   });
 
-  // Mapping client key Midtrans
+  // Handle Midtrans Script Dynamically to avoid Unauthorized error
   const clientKey = metaEnv.VITE_MIDTRANS_CLIENT_ID || 'SB-Mid-client-PLACEHOLDER';
   const isSandbox = clientKey.toUpperCase().startsWith('SB-');
   const snapUrl = isSandbox 
     ? 'https://app.sandbox.midtrans.com/snap/snap.js' 
     : 'https://app.midtrans.com/snap/snap.js';
 
-  const midtransScript = document.getElementById('midtrans-script') as HTMLScriptElement;
+  // Find existing or create new script
+  let midtransScript = document.getElementById('midtrans-script') as HTMLScriptElement;
   if (midtransScript) {
     midtransScript.setAttribute('data-client-key', clientKey);
     midtransScript.src = snapUrl;
+  } else {
+    const script = document.createElement('script');
+    script.id = 'midtrans-script';
+    script.src = snapUrl;
+    script.setAttribute('data-client-key', clientKey);
+    document.head.appendChild(script);
   }
 }
 

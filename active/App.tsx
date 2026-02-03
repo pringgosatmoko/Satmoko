@@ -48,14 +48,14 @@ const App: React.FC = () => {
 
   if (checkingSession) {
     return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
-        <div className="text-[14px] font-bold text-cyan-500 uppercase tracking-[0.6em]">INITIALIZING HUB...</div>
+      <div className="min-h-screen bg-[#020617] flex items-center justify-center">
+        <div className="text-[11px] font-bold text-[#22d3ee] uppercase tracking-[0.4em]">CONNECTING...</div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100">
+    <div className="min-h-screen bg-[#020617] text-slate-100">
       {!isLoggedIn ? (
         <LoginForm onLoginSuccess={handleLoginSuccess} />
       ) : (
