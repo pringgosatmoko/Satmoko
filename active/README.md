@@ -1,20 +1,17 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# Satmoko Studio AI v8.0
 
-# Run and deploy your AI Studio app
+## Setup Instructions
+1. **Supabase**: Create tables `members`, `topup_requests`, `direct_messages`, and `settings`.
+2. **Environment**: Configure variables in Vercel/Netlify dashboard using EXACT names provided.
+3. **Midtrans**: Set Snap notification URL to `[your-domain]/api/midtrans/notificationWebhook`.
 
-This contains everything you need to run your app locally.
-
-View your app in AI Studio: https://ai.studio/apps/drive/15jCFctIj087zaF6eIKBl5Jny8lq8akGo
-
-## Run Locally
-
-**Prerequisites:**  Node.js
-
-
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+## System Logic
+- **Authorization**: Supabase Auth for users. Whitelist check for Admins via `VITE_ADMIN_EMAILS` and bypass via `VITE_PASSW`.
+- **Payment Flow**: 
+    - Client generates Snap Token via `/api/midtrans/createTransaction`.
+    - Snap UI handles the user interface.
+    - Webhook updates database and activates accounts.
+- **AI Engine**: 
+    - Uses Gemini API with automatic rotation through three distinct slots.
+    - Model selection: `gemini-3-flash-preview` for chat, `gemini-3-pro-image-preview` for art.
+- **Telegram**: Bot sends markdown-formatted notifications for key system events.

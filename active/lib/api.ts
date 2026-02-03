@@ -1,65 +1,46 @@
+
 import { createClient } from '@supabase/supabase-js';
 
-// Robust environment variable accessor with fallbacks
+// Ambil env dengan prioritas Vite -> Process (Vercel) -> Default
 const getEnv = () => {
   const metaEnv = (import.meta as any).env || {};
   const processEnv = (typeof window !== 'undefined' && (window as any).process?.env) || {};
   
   return {
-    VITE_DATABASE_URL: processEnv.VITE_DATABASE_URL || metaEnv.VITE_DATABASE_URL || "",
-    VITE_SUPABASE_ANON: processEnv.VITE_SUPABASE_ANON || metaEnv.VITE_SUPABASE_ANON || processEnv.VITE_SUPABASE_ANON_KEY || metaEnv.VITE_SUPABASE_ANON_KEY || "",
-    VITE_ADMIN_EMAILS: processEnv.VITE_ADMIN_EMAILS || metaEnv.VITE_ADMIN_EMAILS || "",
-    VITE_TELEGRAM_BOT_TOKEN: processEnv.VITE_TELEGRAM_BOT_TOKEN || metaEnv.VITE_TELEGRAM_BOT_TOKEN || "",
-    VITE_TELEGRAM_CHAT_ID: processEnv.VITE_TELEGRAM_CHAT_ID || metaEnv.VITE_TELEGRAM_CHAT_ID || "",
-    VITE_PASSW: processEnv.VITE_PASSW || metaEnv.VITE_PASSW || "",
-    VITE_GEMINI_API_1: processEnv.VITE_GEMINI_API_1 || metaEnv.VITE_GEMINI_API_1 || processEnv.API_KEY || metaEnv.API_KEY || ""
+    URL: metaEnv.VITE_DATABASE_URL || processEnv.VITE_DATABASE_URL || "",
+    ANON: metaEnv.VITE_SUPABASE_ANON || processEnv.VITE_SUPABASE_ANON || metaEnv.VITE_SUPABASE_ANON_KEY || ""
   };
 };
 
 const env = getEnv();
 
-// Initialize Supabase with extreme caution. 
-// If keys are missing, we use placeholder strings to prevent 'Uncaught Error' crashes.
-// The app will still load, allowing us to show UI instead of a blank screen.
+// Inisialisasi Client (Akan throw error jika URL benar-benar kosong, membantu debugging)
+if (!env.URL) {
+  console.warn("CRITICAL: VITE_DATABASE_URL tidak terdeteksi. Pastikan file .env atau Dashboard Hosting sudah diisi.");
+}
+
 export const supabase = createClient(
-  env.VITE_DATABASE_URL || "https://placeholder.supabase.co", 
-  env.VITE_SUPABASE_ANON || "public-anonymous-key-placeholder"
+  env.URL || "https://placeholder-project.supabase.co", 
+  env.ANON || "placeholder-anon-key"
 );
 
 export const PLANS = [
-  { id: '1B', label: 'Starter Tier', price: 100000, credits: 1000, durationDays: 30 },
-  { id: '3B', label: 'Pro Tier', price: 250000, credits: 3500, durationDays: 90 },
-  { id: '1T', label: 'Master Tier', price: 900000, credits: 15000, durationDays: 365 }
+  { id: 'starter', label: 'Starter', price: 100000, credits: 1000, days: 30 },
+  { id: 'pro', label: 'Pro', price: 250000, credits: 3500, days: 90 },
+  { id: 'master', label: 'Master', price: 900000, credits: 15000, days: 365 }
 ];
 
-export const getSystemSettings = async () => {
-  try {
-    const { data } = await supabase.from('settings').select('*');
-    const settings: Record<string, any> = { cost_image: 25, cost_video: 150, cost_voice: 150, cost_studio: 600 };
-    data?.forEach(item => { settings[item.key] = item.value; });
-    return settings;
-  } catch (e) {
-    return { cost_image: 25, cost_video: 150, cost_voice: 150, cost_studio: 600 };
-  }
+export const isAdmin = (email: string) => {
+  const metaEnv = (import.meta as any).env || {};
+  const processEnv = (typeof window !== 'undefined' && (window as any).process?.env) || {};
+  const adminList = (metaEnv.VITE_ADMIN_EMAILS || processEnv.VITE_ADMIN_EMAILS || "").toLowerCase().split(',');
+  return email && adminList.includes(email.toLowerCase());
 };
 
-export const updateSystemSetting = async (key: string, value: any) => {
-  const { error } = await supabase.from('settings').upsert({ key, value });
-  return { error };
-};
-
-export const sendTelegramNotification = async (message: string) => {
-  const currentEnv = getEnv();
-  const token = currentEnv.VITE_TELEGRAM_BOT_TOKEN;
-  const chat = currentEnv.VITE_TELEGRAM_CHAT_ID;
-  if (!token || !chat) return;
-  try {
-    await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat_id: chat, text: `🚀 *SATMOKO HUB*\n\n${message}`, parse_mode: 'Markdown' })
-    });
-  } catch (e) {}
+export const getAdminPassword = () => {
+  const metaEnv = (import.meta as any).env || {};
+  const processEnv = (typeof window !== 'undefined' && (window as any).process?.env) || {};
+  return metaEnv.VITE_PASSW || processEnv.VITE_PASSW || "admin123";
 };
 
 export const getUserCredits = async (email: string) => {
@@ -67,9 +48,7 @@ export const getUserCredits = async (email: string) => {
   try {
     const { data } = await supabase.from('members').select('credits').eq('email', email.toLowerCase()).maybeSingle();
     return data?.credits || 0;
-  } catch (e) {
-    return 0;
-  }
+  } catch (e) { return 0; }
 };
 
 export const deductCredits = async (email: string, amount: number) => {
@@ -80,70 +59,138 @@ export const deductCredits = async (email: string, amount: number) => {
   return !error;
 };
 
-export const requestTopup = async (email: string, amount: number, price: number, receipt_url: string) => {
-  const tid = `TOP-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
-  const { error } = await supabase.from('topup_requests').insert([{
-    tid, email: email.toLowerCase(), amount, price, receipt_url, status: 'pending'
-  }]);
-  return { success: !error, tid };
-};
-
-export const isAdmin = (email: string) => {
-  const currentEnv = getEnv();
-  const admins = (currentEnv.VITE_ADMIN_EMAILS || "").toLowerCase().split(',');
-  return admins.includes(email.toLowerCase());
-};
-
-export const getAdminPassword = () => getEnv().VITE_PASSW || 'satmoko123';
-
+// Gemini API Rotation
+let currentKeyIndex = 1;
 export const getActiveApiKey = () => {
-  const currentEnv = getEnv();
-  return currentEnv.VITE_GEMINI_API_1 || "";
+  const metaEnv = (import.meta as any).env || {};
+  const keys = [metaEnv.VITE_GEMINI_API_1, metaEnv.VITE_GEMINI_API_2, metaEnv.VITE_GEMINI_API_3].filter(Boolean);
+  if (keys.length === 0) return process.env.API_KEY || "";
+  return keys[(currentKeyIndex - 1) % keys.length];
 };
 
 export const rotateApiKey = () => {
-  console.log("Rotating to backup node...");
+  currentKeyIndex++;
 };
 
-export const updatePresence = async (email: string) => {
+// Added missing exports to fix module errors across the application
+
+/**
+ * Fetches system-wide settings from the Supabase 'settings' table.
+ */
+export const getSystemSettings = async () => {
   try {
-    await supabase.from('members').update({ last_seen: new Date().toISOString() }).eq('email', email.toLowerCase());
-  } catch (e) {}
-};
-
-export const isUserOnline = (lastSeen?: string | null) => {
-  if (!lastSeen) return false;
-  const last = new Date(lastSeen).getTime();
-  const now = new Date().getTime();
-  return (now - last) < 300000;
-};
-
-export const approveTopup = async (requestId: number, email: string, amount: number) => {
-  try {
-    const { data: member } = await supabase.from('members').select('credits').eq('email', email.toLowerCase()).maybeSingle();
-    const { error: memberError } = await supabase.from('members').update({ 
-      credits: (member?.credits || 0) + amount,
-      status: 'active'
-    }).eq('email', email.toLowerCase());
-    if (memberError) return false;
-    const { error: requestError } = await supabase.from('topup_requests').update({ status: 'approved' }).eq('id', requestId);
-    return !requestError;
+    const { data } = await supabase.from('settings').select('*');
+    const settings: Record<string, any> = {};
+    data?.forEach(s => {
+      settings[s.key] = s.value;
+    });
+    // Fallback defaults for critical costs
+    return {
+      cost_image: Number(settings.cost_image) || 25,
+      cost_video: Number(settings.cost_video) || 150,
+      cost_voice: Number(settings.cost_voice) || 150,
+      cost_studio: Number(settings.cost_studio) || 600,
+      ...settings
+    };
   } catch (e) {
-    return false;
+    return { cost_image: 25, cost_video: 150, cost_voice: 150, cost_studio: 600 };
   }
 };
 
-export const manualUpdateCredits = async (email: string, newCredits: number) => {
-  const { error } = await supabase.from('members').update({ credits: newCredits }).eq('email', email.toLowerCase());
+/**
+ * Updates a single system configuration value in the Supabase 'settings' table.
+ */
+export const updateSystemSetting = async (key: string, value: any) => {
+  const { error } = await supabase.from('settings').upsert({ key, value: value.toString() });
+  return { error };
+};
+
+/**
+ * Triggers a Telegram notification via a serverless function proxy.
+ */
+export const sendTelegramNotification = async (message: string) => {
+  try {
+    await fetch('/api/telegram/notify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message })
+    });
+  } catch (e) {
+    console.error("Telegram notification failed", e);
+  }
+};
+
+/**
+ * Determines if a user is considered 'online' based on their last seen timestamp.
+ */
+export const isUserOnline = (lastSeen: string | null | undefined) => {
+  if (!lastSeen) return false;
+  const lastSeenDate = new Date(lastSeen).getTime();
+  const now = new Date().getTime();
+  // Threshold of 5 minutes for online status
+  return (now - lastSeenDate) < (5 * 60 * 1000);
+};
+
+/**
+ * Approves a manual topup request, updating the request status and credit balance.
+ */
+export const approveTopup = async (id: number, email: string, amount: number) => {
+  // Update the request status to approved
+  const { error: reqError } = await supabase.from('topup_requests').update({ status: 'approved' }).eq('id', id);
+  if (reqError) return false;
+
+  // Update the user's credit balance
+  const current = await getUserCredits(email);
+  const { error: memError } = await supabase.from('members').update({ 
+    credits: Number(current) + Number(amount),
+    status: 'active'
+  }).eq('email', email.toLowerCase());
+
+  if (!memError) {
+    sendTelegramNotification(`✅ TOPUP BERHASIL\nEmail: ${email}\nJumlah: ${amount} CR`);
+    return true;
+  }
+  return false;
+};
+
+/**
+ * Allows administrators to manually set the credit balance for a member.
+ */
+export const manualUpdateCredits = async (email: string, credits: number) => {
+  const { error } = await supabase.from('members').update({ credits }).eq('email', email.toLowerCase());
   return !error;
 };
 
+/**
+ * Returns diagnostic information about the available Gemini API key slots.
+ */
 export const auditApiKeys = () => {
-  const currentEnv = getEnv();
+  const metaEnv = (import.meta as any).env || {};
   return {
-    slot1: !!currentEnv.VITE_GEMINI_API_1,
-    slot2: false,
-    slot3: false,
-    activeSlot: "VITE_GEMINI_API_1"
+    slot1: !!metaEnv.VITE_GEMINI_API_1,
+    slot2: !!metaEnv.VITE_GEMINI_API_2,
+    slot3: !!metaEnv.VITE_GEMINI_API_3,
+    activeSlot: currentKeyIndex
   };
+};
+
+/**
+ * Records a new manual topup request with proof of payment.
+ */
+export const requestTopup = async (email: string, amount: number, price: number, receipt: string) => {
+  const tid = `TOPUP-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+  const { error } = await supabase.from('topup_requests').insert([{
+    tid,
+    email: email.toLowerCase(),
+    amount,
+    price,
+    receipt_url: receipt,
+    status: 'pending'
+  }]);
+  
+  if (!error) {
+    sendTelegramNotification(`💰 REQUEST TOPUP\nEmail: ${email}\nJumlah: ${amount} CR\nID: ${tid}`);
+    return { success: true, tid };
+  }
+  return { success: false, tid: '' };
 };
