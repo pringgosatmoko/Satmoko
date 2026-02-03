@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { LogoHero } from './components/LogoHero';
 import { LandingHero } from './components/LandingHero';
@@ -13,7 +14,6 @@ import { SystemLogs } from './components/SystemLogs';
 import { DirectChat } from './components/DirectChat';
 import { ProfileSettings } from './components/ProfileSettings';
 import { SloganAnimation } from './components/SloganAnimation';
-import { RobotHero } from './components/RobotHero';
 import { StartAnimation } from './components/StartAnimation';
 import { StorageManager } from './components/StorageManager';
 import { PriceManager } from './components/PriceManager';
@@ -268,11 +268,11 @@ const App: React.FC = () => {
               </div>
             </nav>
 
-            <section id="hero" className="min-h-screen flex flex-col items-center justify-start px-6 pt-24 pb-20 bg-gradient-to-b from-[#020617] to-[#010409] relative">
+            <section id="hero" className="min-h-screen flex flex-col items-center justify-start px-6 pt-32 pb-20 bg-gradient-to-b from-[#020617] to-[#010409] relative">
                <motion.div initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 1.5, ease: "easeOut" }} className="mb-0 relative z-20">
                   <LandingHero />
                </motion.div>
-               <div className="text-center space-y-4 mb-8 relative z-20 -mt-8">
+               <div className="text-center space-y-4 mb-12 relative z-20 -mt-6">
                   <LogoHero isLoaded={true} />
                   <SloganAnimation />
                </div>
