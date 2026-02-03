@@ -1,0 +1,7 @@
+{
+  "name": "Copy of Satmoko Studio - AI Creative Portal pro final",
+  "description": "Secure access point for Satmoko Studio's AI Creative Division. Sleek, professional, and high-performance design.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
