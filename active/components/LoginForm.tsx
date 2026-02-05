@@ -1,7 +1,6 @@
 
 import React, { useState } from 'react';
 import { supabase, isAdmin, getAdminPassword, PLANS, sendTelegramNotification } from '../lib/api';
-import { RobotHero } from './RobotHero';
 
 declare const snap: any;
 
@@ -84,7 +83,7 @@ export const LoginForm: React.FC<{ onLoginSuccess: (email: string) => void }> = 
           },
           onError: (err: any) => {
             console.error("Snap Error:", err);
-            setError('MIDTRANS REJECTED: Pastikan Client Key dan Server Key Master berasal dari environment yang SAMA (Sandbox vs Production).');
+            setError('MIDTRANS REJECTED: Pastikan Client Key dan Server Key Master berasal dari environment yang SAMA.');
             setLoading(false);
           },
           onClose: () => setLoading(false)
@@ -99,31 +98,36 @@ export const LoginForm: React.FC<{ onLoginSuccess: (email: string) => void }> = 
   };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-[#020617] p-6 overflow-y-auto">
-      <div className="mb-2 transform scale-75 md:scale-90">
-        <RobotHero />
-      </div>
-      <div className="mb-8 text-center select-none">
+    <div className="flex flex-col items-center justify-start min-h-screen bg-[#020617] p-6 overflow-y-auto pt-10">
+      
+      {/* JUDUL UTAMA - Dibuat statis dan bersih */}
+      <div className="mb-10 text-center select-none w-full">
         <h1 className="text-[#22d3ee] font-bold text-xl md:text-2xl uppercase tracking-[0.8em] italic">
           SATMOKO STUDIO
         </h1>
       </div>
-      <div className="w-full max-w-[420px] bg-[#0f172a]/30 border border-white/5 p-8 md:p-10 rounded-[2.5rem] shadow-2xl space-y-8 backdrop-blur-md">
+
+      {/* CONTAINER FORM - Dirampingkan agar pas di layar HP */}
+      <div className="w-full max-w-[420px] bg-[#0f172a]/30 border border-white/5 p-8 md:p-10 rounded-[2.5rem] shadow-2xl space-y-8 backdrop-blur-md mb-20">
+        
         <div className="text-center">
           <h2 className="text-[#22d3ee] text-[10px] font-black uppercase tracking-[0.4em]">
             {mode === 'login' ? 'Authentication' : mode === 'register' ? 'Registration' : 'SELECT PLAN'}
           </h2>
         </div>
+
         {error && (
           <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-2xl text-[9px] font-bold text-red-500 text-center uppercase leading-relaxed tracking-wider">
             {error}
           </div>
         )}
+
         {info && (
           <div className="p-4 bg-green-500/10 border border-green-500/20 rounded-2xl text-[9px] font-bold text-green-500 text-center uppercase tracking-wider">
             {info}
           </div>
         )}
+
         <div className="space-y-4">
           {mode === 'login' && (
             <form onSubmit={handleLogin} className="space-y-4">
@@ -132,18 +136,20 @@ export const LoginForm: React.FC<{ onLoginSuccess: (email: string) => void }> = 
               <button disabled={loading} className="w-full py-4 bg-[#22d3ee] text-black font-black text-[11px] uppercase rounded-2xl shadow-lg active:scale-95 transition-transform">
                 {loading ? 'WAIT...' : 'SIGN IN'}
               </button>
-              <button type="button" onClick={() => setMode('register')} className="w-full text-[9px] font-bold text-slate-600 uppercase tracking-widest text-center">Create Account</button>
+              <button type="button" onClick={() => setMode('register')} className="w-full text-[9px] font-bold text-slate-600 uppercase tracking-widest text-center mt-2">Create Account</button>
             </form>
           )}
+
           {mode === 'register' && (
             <div className="space-y-4">
               <input type="text" placeholder="FULL NAME" className="w-full bg-black/40 border border-white/10 rounded-xl p-4 text-[11px] text-white outline-none" value={fullName} onChange={e => setFullName(e.target.value)} />
               <input type="email" placeholder="EMAIL ADDRESS" className="w-full bg-black/40 border border-white/10 rounded-xl p-4 text-[11px] text-white outline-none" value={email} onChange={e => setEmail(e.target.value)} />
               <input type="password" placeholder="PASSWORD" className="w-full bg-black/40 border border-white/10 rounded-xl p-4 text-[11px] text-white outline-none" value={password} onChange={e => setPassword(e.target.value)} />
               <button onClick={() => setMode('plan')} className="w-full py-4 bg-white text-black font-black text-[11px] uppercase rounded-2xl">NEXT: SELECT PLAN</button>
-              <button onClick={() => setMode('login')} className="w-full text-[9px] font-bold text-slate-600 uppercase tracking-widest text-center">Back</button>
+              <button onClick={() => setMode('login')} className="w-full text-[9px] font-bold text-slate-600 uppercase tracking-widest text-center mt-2">Back</button>
             </div>
           )}
+
           {mode === 'plan' && (
             <div className="space-y-6">
               <div className="space-y-3">
@@ -164,10 +170,11 @@ export const LoginForm: React.FC<{ onLoginSuccess: (email: string) => void }> = 
               <button onClick={startPaymentFlow} disabled={loading || !selectedPlan} className="w-full py-5 bg-[#22d3ee] text-black font-black uppercase text-[11px] rounded-2xl tracking-widest shadow-xl active:scale-95 transition-transform">
                 {loading ? 'PROCESSING...' : 'PAY & REGISTER'}
               </button>
-              <button onClick={() => setMode('register')} className="w-full text-[9px] font-bold text-slate-600 uppercase text-center block tracking-widest">BACK</button>
+              <button onClick={() => setMode('register')} className="w-full text-[9px] font-bold text-slate-600 uppercase text-center block tracking-widest mt-2">BACK</button>
             </div>
           )}
         </div>
+        
         <div className="pt-4 opacity-10 flex flex-col items-center">
           <p className="text-[8px] font-bold text-slate-500 uppercase tracking-[0.5em]">ORA NGAPAK ORA KEPENAK</p>
         </div>
