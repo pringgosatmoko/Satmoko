@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { supabase, isAdmin, getAdminPassword, PLANS, sendTelegramNotification } from '../lib/api';
-import { LandingHero } from './LandingHero';
+import { RobotHero } from './RobotHero';
 
 declare const snap: any;
 
@@ -69,7 +69,10 @@ export const LoginForm: React.FC<{ onLoginSuccess: (email: string) => void }> = 
       });
       
       const data = await response.json();
-      if (data.error) throw new Error(data.error);
+      
+      if (!response.ok || data.error) {
+        throw new Error(data.error || "Gagal mendapatkan token transaksi.");
+      }
 
       if (typeof snap !== 'undefined') {
         snap.pay(data.token, {
@@ -79,14 +82,15 @@ export const LoginForm: React.FC<{ onLoginSuccess: (email: string) => void }> = 
             setMode('login');
             setLoading(false);
           },
-          onError: () => {
-            setError('ACCESS DENIED DUE TO UNAUTHORIZED TRANSACTION, PLEASE CHECK CLIENT OR SERVER KEY');
+          onError: (err: any) => {
+            console.error("Snap Error:", err);
+            setError('MIDTRANS REJECTED: Pastikan Client Key dan Server Key Master berasal dari environment yang SAMA (Sandbox vs Production).');
             setLoading(false);
           },
           onClose: () => setLoading(false)
         });
       } else {
-        throw new Error('Payment gateway not loaded.');
+        throw new Error('Snap.js belum termuat. Harap periksa koneksi internet Master.');
       }
     } catch (err: any) {
       setError(err.message || 'TRANSACTION FAILED.');
@@ -95,62 +99,59 @@ export const LoginForm: React.FC<{ onLoginSuccess: (email: string) => void }> = 
   };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-[#020617] p-4 font-sans">
-      
-      {/* HEADER STATIS */}
-      <LandingHero />
-
-      {/* CONTAINER UTAMA */}
-      <div className="w-full max-w-[400px] bg-[#0f172a]/40 border border-white/5 p-8 rounded-[2.5rem] shadow-2xl space-y-6">
-        
+    <div className="flex flex-col items-center justify-center min-h-screen bg-[#020617] p-6 overflow-y-auto">
+      <div className="mb-2 transform scale-75 md:scale-90">
+        <RobotHero />
+      </div>
+      <div className="mb-8 text-center select-none">
+        <h1 className="text-[#22d3ee] font-bold text-xl md:text-2xl uppercase tracking-[0.8em] italic">
+          SATMOKO STUDIO
+        </h1>
+      </div>
+      <div className="w-full max-w-[420px] bg-[#0f172a]/30 border border-white/5 p-8 md:p-10 rounded-[2.5rem] shadow-2xl space-y-8 backdrop-blur-md">
         <div className="text-center">
-          <h2 className="text-[#22d3ee] text-[12px] font-bold uppercase tracking-[0.4em]">
+          <h2 className="text-[#22d3ee] text-[10px] font-black uppercase tracking-[0.4em]">
             {mode === 'login' ? 'Authentication' : mode === 'register' ? 'Registration' : 'SELECT PLAN'}
           </h2>
         </div>
-
         {error && (
-          <div className="p-5 bg-red-950/20 border border-red-900/40 rounded-2xl text-[10px] font-bold text-red-500 text-center uppercase leading-normal tracking-wider">
+          <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-2xl text-[9px] font-bold text-red-500 text-center uppercase leading-relaxed tracking-wider">
             {error}
           </div>
         )}
-
         {info && (
-          <div className="p-4 bg-green-500/10 border border-green-500/20 rounded-2xl text-[10px] font-bold text-green-500 text-center uppercase tracking-wider">
+          <div className="p-4 bg-green-500/10 border border-green-500/20 rounded-2xl text-[9px] font-bold text-green-500 text-center uppercase tracking-wider">
             {info}
           </div>
         )}
-
         <div className="space-y-4">
           {mode === 'login' && (
             <form onSubmit={handleLogin} className="space-y-4">
               <input type="email" placeholder="EMAIL" className="w-full bg-black/40 border border-white/10 rounded-xl p-4 text-[11px] text-white outline-none focus:border-[#22d3ee]/40" value={email} onChange={e => setEmail(e.target.value)} required />
               <input type="password" placeholder="PASSWORD" className="w-full bg-black/40 border border-white/10 rounded-xl p-4 text-[11px] text-white outline-none focus:border-[#22d3ee]/40" value={password} onChange={e => setPassword(e.target.value)} required />
-              <button disabled={loading} className="w-full py-4 bg-[#22d3ee] text-black font-black text-[11px] uppercase rounded-2xl">
+              <button disabled={loading} className="w-full py-4 bg-[#22d3ee] text-black font-black text-[11px] uppercase rounded-2xl shadow-lg active:scale-95 transition-transform">
                 {loading ? 'WAIT...' : 'SIGN IN'}
               </button>
               <button type="button" onClick={() => setMode('register')} className="w-full text-[9px] font-bold text-slate-600 uppercase tracking-widest text-center">Create Account</button>
             </form>
           )}
-
           {mode === 'register' && (
             <div className="space-y-4">
               <input type="text" placeholder="FULL NAME" className="w-full bg-black/40 border border-white/10 rounded-xl p-4 text-[11px] text-white outline-none" value={fullName} onChange={e => setFullName(e.target.value)} />
-              <input type="email" placeholder="EMAIL" className="w-full bg-black/40 border border-white/10 rounded-xl p-4 text-[11px] text-white outline-none" value={email} onChange={e => setEmail(e.target.value)} />
+              <input type="email" placeholder="EMAIL ADDRESS" className="w-full bg-black/40 border border-white/10 rounded-xl p-4 text-[11px] text-white outline-none" value={email} onChange={e => setEmail(e.target.value)} />
               <input type="password" placeholder="PASSWORD" className="w-full bg-black/40 border border-white/10 rounded-xl p-4 text-[11px] text-white outline-none" value={password} onChange={e => setPassword(e.target.value)} />
-              <button onClick={() => setMode('plan')} className="w-full py-4 bg-white text-black font-black text-[11px] uppercase rounded-2xl">NEXT</button>
+              <button onClick={() => setMode('plan')} className="w-full py-4 bg-white text-black font-black text-[11px] uppercase rounded-2xl">NEXT: SELECT PLAN</button>
               <button onClick={() => setMode('login')} className="w-full text-[9px] font-bold text-slate-600 uppercase tracking-widest text-center">Back</button>
             </div>
           )}
-
           {mode === 'plan' && (
-            <div className="space-y-4">
+            <div className="space-y-6">
               <div className="space-y-3">
                 {PLANS.map(plan => (
                   <button 
                     key={plan.id} 
                     onClick={() => setSelectedPlan(plan)} 
-                    className={`w-full p-5 rounded-2xl border flex justify-between items-center transition-none ${selectedPlan?.id === plan.id ? 'bg-transparent border-[#22d3ee] text-[#22d3ee]' : 'bg-black/40 border-white/5 text-slate-500'}`}
+                    className={`w-full p-6 rounded-2xl border flex justify-between items-center transition-none ${selectedPlan?.id === plan.id ? 'bg-transparent border-[#22d3ee] text-[#22d3ee]' : 'bg-black/40 border-white/5 text-slate-500'}`}
                   >
                     <div className="text-left">
                       <p className="text-[11px] font-black uppercase tracking-wider">{plan.label}</p>
@@ -160,15 +161,14 @@ export const LoginForm: React.FC<{ onLoginSuccess: (email: string) => void }> = 
                   </button>
                 ))}
               </div>
-              <button onClick={startPaymentFlow} disabled={loading || !selectedPlan} className="w-full py-5 bg-[#22d3ee] text-black font-black uppercase text-[11px] rounded-2xl tracking-widest">
+              <button onClick={startPaymentFlow} disabled={loading || !selectedPlan} className="w-full py-5 bg-[#22d3ee] text-black font-black uppercase text-[11px] rounded-2xl tracking-widest shadow-xl active:scale-95 transition-transform">
                 {loading ? 'PROCESSING...' : 'PAY & REGISTER'}
               </button>
               <button onClick={() => setMode('register')} className="w-full text-[9px] font-bold text-slate-600 uppercase text-center block tracking-widest">BACK</button>
             </div>
           )}
         </div>
-        
-        <div className="pt-6 opacity-20 flex flex-col items-center">
+        <div className="pt-4 opacity-10 flex flex-col items-center">
           <p className="text-[8px] font-bold text-slate-500 uppercase tracking-[0.5em]">ORA NGAPAK ORA KEPENAK</p>
         </div>
       </div>

@@ -9,23 +9,28 @@ export default async function handler(req: any, res: any) {
   try {
     const { orderId, amount, email, fullName } = req.body;
     
-    // Prioritaskan VITE_MIDTRANS_SERVER_ID sesuai screenshot Vercel Master
-    const rawServerId = process.env.VITE_MIDTRANS_SERVER_ID || process.env.MIDTRANS_SERVER_ID;
-    const serverId = rawServerId?.trim();
+    // Ambil Server Key dari berbagai kemungkinan nama variabel yang Master input
+    const rawKey = process.env.VITE_MIDTRANS_SERVER_ID || 
+                   process.env.MIDTRANS_SERVER_ID || 
+                   process.env.MIDTRANS_SERVER_KEY || 
+                   process.env.VITE_MIDTRANS_SERVER_KEY;
+
+    // LOGIKA PERBAIKAN: Bersihkan kunci dari spasi, newline, atau karakter tersembunyi
+    const serverKey = rawKey?.replace(/[^a-zA-Z0-9\-_:]/g, '').trim();
     
-    if (!serverId) {
-      return res.status(500).json({ error: "MIDTRANS_SERVER_ID_MISSING" });
+    if (!serverKey) {
+      return res.status(500).json({ error: "SERVER_KEY_NOT_FOUND_IN_ENV" });
     }
 
-    // Auth Header: Basic [base64(server_id:)]
-    const authHeader = `Basic ${Buffer.from(`${serverId}:`).toString('base64')}`;
-    
-    // Tentukan URL berdasarkan prefix key
-    const isSandbox = serverId.toUpperCase().startsWith('SB-');
+    // Deteksi Sandbox berdasarkan prefix standar Midtrans (SB-)
+    const isSandbox = serverKey.toUpperCase().startsWith('SB-');
     const baseUrl = isSandbox 
       ? 'https://app.sandbox.midtrans.com/snap/v1/transactions'
       : 'https://app.midtrans.com/snap/v1/transactions';
 
+    // Auth Header: Base64(server_key + ":")
+    const authHeader = `Basic ${Buffer.from(`${serverKey}:`).toString('base64')}`;
+    
     const response = await fetch(baseUrl, {
       method: 'POST',
       headers: {
@@ -42,7 +47,6 @@ export default async function handler(req: any, res: any) {
           first_name: fullName, 
           email: email 
         },
-        credit_card: { secure: true },
         usage_limit: 1
       })
     });
@@ -50,8 +54,9 @@ export default async function handler(req: any, res: any) {
     const data = await response.json();
     
     if (!response.ok) {
+      console.error("Midtrans API Error:", data);
       return res.status(response.status).json({ 
-        error: data.error_messages?.[0] || "PAYMENT_GATEWAY_AUTH_ERROR" 
+        error: data.error_messages ? data.error_messages[0] : "MIDTRANS_AUTH_REJECTED" 
       });
     }
 

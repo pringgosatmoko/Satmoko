@@ -4,7 +4,6 @@ import ReactDOM from 'react-dom/client';
 import App from './App';
 import './index.css';
 
-// Ensure polyfill from index.html is augmented with current environment variables
 if (typeof window !== 'undefined') {
   const win = window as any;
   const metaEnv = (import.meta as any).env || {};
@@ -18,24 +17,24 @@ if (typeof window !== 'undefined') {
     VITE_ADMIN_EMAILS: metaEnv.VITE_ADMIN_EMAILS,
   });
 
-  // Handle Midtrans Script Dynamically to avoid Unauthorized error
-  const clientKey = metaEnv.VITE_MIDTRANS_CLIENT_ID || 'SB-Mid-client-PLACEHOLDER';
-  const isSandbox = clientKey.toUpperCase().startsWith('SB-');
-  const snapUrl = isSandbox 
-    ? 'https://app.sandbox.midtrans.com/snap/snap.js' 
-    : 'https://app.midtrans.com/snap/snap.js';
+  // Ambil Client Key dan bersihkan dari karakter aneh
+  const rawClientKey = metaEnv.VITE_MIDTRANS_CLIENT_ID || '';
+  const clientKey = rawClientKey.replace(/[^a-zA-Z0-9\-_:]/g, '').trim();
 
-  // Find existing or create new script
-  let midtransScript = document.getElementById('midtrans-script') as HTMLScriptElement;
-  if (midtransScript) {
-    midtransScript.setAttribute('data-client-key', clientKey);
-    midtransScript.src = snapUrl;
-  } else {
-    const script = document.createElement('script');
-    script.id = 'midtrans-script';
-    script.src = snapUrl;
-    script.setAttribute('data-client-key', clientKey);
-    document.head.appendChild(script);
+  if (clientKey) {
+    const isSandbox = clientKey.toUpperCase().startsWith('SB-');
+    const snapUrl = isSandbox 
+      ? 'https://app.sandbox.midtrans.com/snap/snap.js' 
+      : 'https://app.midtrans.com/snap/snap.js';
+
+    // Pastikan tidak memuat script dua kali
+    if (!document.querySelector(`script[src="${snapUrl}"]`)) {
+      const script = document.createElement('script');
+      script.src = snapUrl;
+      script.setAttribute('data-client-key', clientKey);
+      script.async = true;
+      document.head.appendChild(script);
+    }
   }
 }
 
